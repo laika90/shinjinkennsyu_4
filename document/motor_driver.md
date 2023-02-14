@@ -59,13 +59,13 @@ DCモーターはこの2本を今とは逆に接続すれば、逆回転でき�
 
 さて、モータードライバの本体はこいつ
 
-<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_diver_03.jpeg width="320px">  
+<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_diver_03.png width="320px">  
 
 （[秋月電子通商](https://akizukidenshi.com/download/ds/Toshiba/TB6612FNG_datasheet_ja_20141001.pdf)より） 
 
 ですが、これは少々考えることが多いので、キットになって考えることを少なくしてくれています。これがその回路図ですね。
 
-<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_diver_04.jpeg width="320px">  
+<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_diver_04.png width="320px">  
 
 （[秋月電子通商](https://akizukidenshi.com/download/ds/akizuki/AE-TB6612_20201008.pdf)より）
 
@@ -87,7 +87,7 @@ DCモーターはこの2本を今とは逆に接続すれば、逆回転でき�
 
 **真理値表**
 
-<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_diver_05.jpeg width="320px">  
+<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_diver_05.png width="320px">  
 
 （[秋月電子通商](https://akizukidenshi.com/download/ds/akizuki/AE-TB6612_20201008.pdf)より）
 
