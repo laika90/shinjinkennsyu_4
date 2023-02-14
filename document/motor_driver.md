@@ -7,7 +7,7 @@
 
 （[秋月電子通商](https://akizukidenshi.com/catalog/g/gK-11219/)より）  
 
-これはキットになっていますが、この黒いチップみたいなのが本体です。周りのやつはモータードライバとは呼びません。たぶん。
+これはキットになっていますが、この黒いチップみたいなのが本体です。周りのやつはモータードライバとは呼びません。たぶん。変なちっこいパーツは低ノイズ用のコンデンサです。
 
 ## なんこれ
 
@@ -51,6 +51,48 @@ DCモーターはこの2本を今とは逆に接続すれば、逆回転でき�
 さて、これらの問題を全て解決してくれるのがモータードライバです。天才かな？
 
 ## 仕組みと使い方
+
+先に取扱説明書とデータシートをあげておきます。どちらも[秋月電子通商](https://akizukidenshi.com/catalog/g/gK-11219/)より引用させていただきました。
+
+* [取扱説明書](https://akizukidenshi.com/download/ds/akizuki/AE-TB6612_20201008.pdf)
+* [データシート](https://akizukidenshi.com/download/ds/Toshiba/TB6612FNG_datasheet_ja_20141001.pdf)
+
+さて、モータードライバの本体はこいつ
+
+<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_diver_03.jpeg width="320px">  
+
+（[秋月電子通商](https://akizukidenshi.com/download/ds/Toshiba/TB6612FNG_datasheet_ja_20141001.pdf)より） 
+
+ですが、これは少々考えることが多いので、キットになって考えることを少なくしてくれています。これがその回路図ですね。
+
+<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_diver_04.jpeg width="320px">  
+
+（[秋月電子通商](https://akizukidenshi.com/download/ds/akizuki/AE-TB6612_20201008.pdf)より）
+
+それぞれのピンや出力に色々書いてありますね。いかがその意味です。（TB6612はデュアル仕様で、2モーター制御できるので、A/Bの2チャネルあります。） 
+
+**ピン**
+
+| ピン | 意味 |  
+| ---- | ---- |  
+| PWM A/B | A/B チャネルのPWM制御（速度変更）。PWMのHIGH/LOWによって通常回転（正転・逆転）とショートブレーキが繰り返される。 |  
+| A/B IN 1/2 | 正転・逆転・停止の変更。真理値表をみよう。|  
+| VCC | ロジックの電源（2.7~5.5V）。ここに電流を入れてドライバに給電される。 |  
+| STBY | ここがHIGHだと、ドライバによる制御可能。 |  
+| GND | グラウンド。マイコンのGNDと繋げとこう。 |  
+| A/B O 0/1 | 出力。真理値表を見よう。 |  
+| PGND | バッテ側のGNDを繋ごう |  
+| VM | モーター電源（2.5~13.5V）。モーターを動かすのに使う電源。 |  
+
+
+**真理値表**
+
+<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_diver_05.jpeg width="320px">  
+
+（[秋月電子通商](https://akizukidenshi.com/download/ds/akizuki/AE-TB6612_20201008.pdf)より）
+
+これに従って配線していけばいいですね。  
+真理値表びもある通り、IN1とIN、PWMがHIGHかLOWかによって、正転するか逆転するか制御できます。詳しい内部構造は省きますが、Hブリッジ回路によって、スイッチの切り替えをすることで電流の流れる方向を制御しているみたいですね。回路図を見るとダイオードが差し込まれているので、これで電流の逆流を防いでいるのもわかります。  
 
 
 
