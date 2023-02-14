@@ -65,7 +65,7 @@ DCモーターはこの2本を今とは逆に接続すれば、逆回転でき�
 
 ですが、これは少々考えることが多いので、キットになって考えることを少なくしてくれています。これがその回路図ですね。  
 
-<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_driver_04.png width="500px">  
+<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_driver_04.png width="700px">  
 
 （[秋月電子通商](https://akizukidenshi.com/download/ds/akizuki/AE-TB6612_20201008.pdf)より）
 
@@ -87,7 +87,7 @@ DCモーターはこの2本を今とは逆に接続すれば、逆回転でき�
 
 **真理値表**
 
-<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_driver_05.png width="500px">  
+<img src=https://github.com/laika90/shinjinkennsyu_4/blob/master/document/images/motor_driver_05.png width="600px">  
 
 （[秋月電子通商](https://akizukidenshi.com/download/ds/akizuki/AE-TB6612_20201008.pdf)より）
 
