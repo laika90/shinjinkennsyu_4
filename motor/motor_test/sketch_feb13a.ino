@@ -1,9 +1,9 @@
-#define AIN1 13
-#define AIN2 12
+#define AIN1 12
+#define AIN2 13
 #define PWMA 11
-#define BIN1 10
-#define BIN2 9
-#define PWMB 8
+#define BIN1 9
+#define BIN2 8
+#define PWMB 10
 int speed = 200;
 void goingforward(int speed){
     digitalWrite(AIN1,HIGH);
