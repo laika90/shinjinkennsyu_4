@@ -1,10 +1,10 @@
 #define AIN1 12
 #define AIN2 13
 #define PWMA 11
-#define BIN1 9
-#define BIN2 8
-#define PWMB 10
-int speed = 200;
+#define BIN1 5
+#define BIN2 4
+#define PWMB 6
+int speed = 50;
 void goingforward(int speed){
     digitalWrite(AIN1,HIGH);
     digitalWrite(AIN2,LOW);
@@ -23,22 +23,22 @@ void goingforward(int speed){
     analogWrite(PWMB,speed);
   }
 
-  void turnA(){
+  void turn_left(){
     digitalWrite(AIN1,HIGH);
     digitalWrite(AIN2,LOW);
-    digitalWrite(BIN1,LOW);
-    digitalWrite(BIN2,HIGH);
-    analogWrite(PWMA,100);
-    analogWrite(PWMB,0);  
+    digitalWrite(BIN1,HIGH);
+    digitalWrite(BIN2,LOW);
+    analogWrite(PWMA,50);
+    analogWrite(PWMB,50);  
   }
 
-  void turnB(){
-    digitalWrite(AIN1,HIGH);
-    digitalWrite(AIN2,LOW);
+  void turn_right(){
+    digitalWrite(AIN1,LOW);
+    digitalWrite(AIN2,HIGH);
     digitalWrite(BIN1,LOW);
     digitalWrite(BIN2,HIGH);
-    analogWrite(PWMA,0);
-    analogWrite(PWMB,100);  
+    analogWrite(PWMA,50);
+    analogWrite(PWMB,50);  
   } 
 void setup() {
   pinMode(AIN1,OUTPUT);
@@ -50,17 +50,12 @@ void setup() {
 }
 
 void loop() {
-  int i = 0;
-  for(i;i<3;i++){
   goingforward(speed);
   delay(5000);
   goingback(speed);
   delay(5000);
-  turnA();
+  turn_right();
   delay(5000);  
-  turnB();
+  turn_left();
   delay(5000);
-  }
-  
-
   }
