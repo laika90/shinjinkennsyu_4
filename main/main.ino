@@ -71,9 +71,10 @@ void setup() {
   //Serial.println(F("ok."));
   SdFile::dateTimeCallback( &dateTime );
 
-  SD_Stringln("\nProgram Start");
-  SD_String("Initial Value of Red (Calibration): ");
+  SD_write("\nProgram Start\n"); 
+  SD_write("Initial Value of Red (Calibration): ");
   SD_write(start_val);
+  SD_write("\n");
 }
 //カラーセンサーにゲインを書きこむ
 void GAIN(uint16_t N) {
