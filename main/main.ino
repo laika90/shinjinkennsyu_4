@@ -73,7 +73,7 @@ void setup() {
 
   SD_Stringln("\nProgram Start");
   SD_String("Initial Value of Red (Calibration): ");
-  SD_intln(start_val);
+  SD_write(start_val);
 }
 //カラーセンサーにゲインを書きこむ
 void GAIN(uint16_t N) {
@@ -104,91 +104,6 @@ void dateTime(uint16_t* date, uint16_t* time)
 
   // FAT_TIMEマクロでフィールドを埋めて時間を返す
   *time = FAT_TIME(hour, minute, second);
-}
-
-void SD_intln(int SD_num){
-  // ファイルを開く
-  File dataFile = SD.open("datalog.txt", FILE_WRITE);
-
-  // もしファイルが開けたら値を書き込む
-  if (dataFile) {
-    dataFile.println(SD_num);
-    dataFile.close();
-    // シリアルポートにも出力
-    Serial.println(SD_num);
-  }
-  // ファイルが開けなかったらエラーを出力
-  else {
-    Serial.println(F("error opening datalog.txt"));
-  }
-}
-
-void SD_Stringln(String SD_Str){
-  // ファイルを開く
-  File dataFile = SD.open("datalog.txt", FILE_WRITE);
-
-  // もしファイルが開けたら値を書き込む
-  if (dataFile) {
-    dataFile.println(SD_Str);
-    dataFile.close();
-    // シリアルポートにも出力
-    Serial.println(SD_Str);
-  }
-  // ファイルが開けなかったらエラーを出力
-  else {
-    Serial.println(F("error opening datalog.txt"));
-  } 
-}
-
-void SD_Doubleln(double SD_Double){
-  // ファイルを開く
-  File dataFile = SD.open("datalog.txt", FILE_WRITE);
-
-  // もしファイルが開けたら値を書き込む
-  if (dataFile) {
-    dataFile.println(SD_Double);
-    dataFile.close();
-    // シリアルポートにも出力
-    Serial.println(SD_Double);
-  }
-  // ファイルが開けなかったらエラーを出力
-  else {
-    Serial.println(F("error opening datalog.txt"));
-  } 
-}
-
-void SD_int(int SD_num){
-  // ファイルを開く
-  File dataFile = SD.open("datalog.txt", FILE_WRITE);
-
-  // もしファイルが開けたら値を書き込む
-  if (dataFile) {
-    dataFile.print(SD_num);
-    dataFile.close();
-    // シリアルポートにも出力
-    Serial.print(SD_num);
-  }
-  // ファイルが開けなかったらエラーを出力
-  else {
-    Serial.println(F("error opening datalog.txt"));
-  }
-}
-
-void SD_String(String SD_Str){
-  // ファイルを開く
-  File dataFile = SD.open("datalog.txt", FILE_WRITE);
-
-  // もしファイルが開けたら値を書き込む
-  if (dataFile) {
-    dataFile.print(SD_Str);
-    dataFile.close();
-    // シリアルポートにも出力
-    Serial.print(SD_Str);
-  }
-  // ファイルが開けなかったらエラーを出力
-  else {
-    Serial.println(F("error opening datalog.txt"));
-  } 
 }
 
 template <class T>
@@ -356,9 +271,9 @@ void distance(){
   if (Duration > 0) {
     Duration = Duration/2; //往復距離を半分にする
     Distance = Duration*340*100/1000000; // 音速を340m/sに設定
-    SD_String("Distance:");
-    SD_Doubleln(Distance);
-    //SD_Stringln(" cm");
+    SD_write("Distance:");
+    SD_write(Distance);
+    //SD_write(" cm");
   }
 }
 
@@ -366,8 +281,8 @@ void loop(){
   while(1){
     while(1){
       int redred = color_red_mean();
-      SD_String("Red: ");
-      SD_intln(redred);
+      SD_write("Red: ");
+      SD_write(redred);
       lst_red_m[0] = lst_red_m[1];
       lst_red_m[1] = lst_red_m[2];
       lst_red_m[2] = redred;
@@ -380,11 +295,11 @@ void loop(){
       // turn_left();
       // delay(200);
       // stop();
-      SD_Stringln("Turning");
+      SD_write("Turning");
 
     }
 
-    SD_Stringln("Red detected");
+    SD_write("Red detected");
     distance();
     if(Distance < 20 && Distance > 1){
       break;
@@ -398,7 +313,7 @@ void loop(){
     }
 
   }
-  SD_Stringln("Object Collection Phase");
+  SD_write("Object Collection Phase");
   while(1){
     // goingforward(speed);
     // delay(300);
@@ -412,7 +327,7 @@ void loop(){
     }
   }
 
-  SD_Stringln("Lift Start");
+  SD_write("Lift Start");
   // lift_up(50);
   // delay(3000);
   // lift_stop();
@@ -421,7 +336,7 @@ void loop(){
   // delay(3000);
   // stop();
 
-  SD_Stringln("Collected");
+  SD_write("Collected");
   while(1){};
   
 }
