@@ -191,6 +191,24 @@ void SD_String(String SD_Str){
   } 
 }
 
+template <class T>
+void SD_write(T SD_source){
+  // ファイルを開く
+  File dataFile = SD.open("datalog.txt", FILE_WRITE);
+
+  // もしファイルが開けたら値を書き込む
+  if (dataFile) {
+    dataFile.print(SD_source);
+    dataFile.close();
+    // シリアルポートにも出力
+    Serial.print(SD_source);
+  }
+  // ファイルが開けなかったらエラーを出力
+  else {
+    Serial.println(F("error opening datalog.txt"));
+  } 
+}
+
 //カラーセンサーで計測をする。これは次の関数(color)に使うだけ。
 void WRITE(uint8_t Tint) {
   uint8_t val;
@@ -359,47 +377,51 @@ void loop(){
         //stop();
         break;
       }
-      //turn_left();
-      //delay(200);
-      //stop();
-      //distance();
+      // turn_left();
+      // delay(200);
+      // stop();
       SD_Stringln("Turning");
 
     }
+
     SD_Stringln("Red detected");
     distance();
     if(Distance < 20 && Distance > 1){
       break;
     } else{
-      //goingforward(speed);
-      //delay(500);
-      //stop();
+      // goingforward(speed);
+      // delay(500);
+      // stop();
+      // turn_right();
+      // delay(1000);
+      // stop();
     }
 
   }
   SD_Stringln("Object Collection Phase");
   while(1){
-    //goingforward(speed);
-    //delay(300);
-    //stop();
+    // goingforward(speed);
+    // delay(300);
+    // stop();
     distance();
     if(Distance < 10.0){
-      //goingforward(speed);
-      //delay(300);
-      //stop();
+      // goingforward(speed);
+      // delay(2000);
+      // stop();
       break;
     }
   }
-  SD_Stringln("Lift Start");
-  //lift_up(50);
-  //delay(300);
-  //lift_stop();
 
-  //turn_right();
-  //delay(3000);
-  //stop();
+  SD_Stringln("Lift Start");
+  // lift_up(50);
+  // delay(3000);
+  // lift_stop();
+
+  // turn_right();
+  // delay(3000);
+  // stop();
 
   SD_Stringln("Collected");
-  while(1);
+  while(1){};
   
 }
