@@ -65,7 +65,6 @@ void setup() {
   Wire.begin();  //I2Cマスター接続
   //マニュアル積分時間倍数設定
   GAIN(N);
-  offset();
 
   pinMode(INPIN,INPUT);
   pinMode(LEDPIN,OUTPUT);
@@ -100,6 +99,7 @@ void setup() {
   SD_write("Initial Value of Red (Calibration): ");
   SD_writeln(offset_val);
   SD_write("\n");
+  
 }
 //カラーセンサーにゲインを書きこむ
 void GAIN(uint16_t N) {
