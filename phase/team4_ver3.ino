@@ -45,19 +45,11 @@ int down_speed = 40; //リフト下降時のスピード
 
 const int chipSelect = 17;//SDのチップセレクト
 
-//"color_mean"の引数に使って
-const short int select_red = 1;
-const short int select_green = 2;
-const short int select_blue = 3;
-const short int select_infrared = 4;
 //積分時間 00:87.5us, 01:1.4ms, 10:22.4ms, 11:179.2ms
 const uint8_t Tint = 0;
 const uint16_t N = 500;
 
 const int photoresistor = 0; //フォトレジスタの閾値
-
-
-
 
 //一回だけ実行
 void setup() {
