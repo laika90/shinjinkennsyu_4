@@ -34,6 +34,9 @@
 #define BLUE 2
 #define INFRARED 3
 
+// 配列の大きさをとるマクロ
+#define ARRAY_LENGTH(array) (sizeof(array) / sizeof(array[0]))
+
 //変数・定数の定義
 uint16_t offset_val[4] = {0,0,0,0};
 uint16_t color_array[4] = {0,0,0,0};
@@ -45,19 +48,12 @@ int down_speed = 40; //リフト下降時のスピード
 
 const int chipSelect = 10;//SDのチップセレクト
 
-//"color_mean"の引数に使って
-const short int select_red = 1;
-const short int select_green = 2;
-const short int select_blue = 3;
-const short int select_infrared = 4;
 //積分時間 00:87.5us, 01:1.4ms, 10:22.4ms, 11:179.2ms
 const uint8_t Tint = 0;
 const uint16_t N = 500;
 
-const int photoresistor = 0; //フォトレジスタの閾値
-
-
-
+const int photoresistor_threshold = 0; //フォトレジスタの閾値
+const double color_threshold_ratio = 1.3 // カラーセンサ閾値倍率
 
 //一回だけ実行
 void setup() {
@@ -96,10 +92,8 @@ void setup() {
   SD_writeln("\n###################");
   SD_writeln("## Program Start ##");
   SD_writeln("###################");
-  SD_write("Initial Value of Red (Calibration): ");
-  SD_writeln(offset_val);
-  SD_write("\n");
-  
+  offset();
+
 }
 //カラーセンサーにゲインを書きこむ
 void GAIN(uint16_t N) {
@@ -234,20 +228,22 @@ void update_color_array() {
 void take_color_ave(){
 
   uint16_t last3_color_array[3][4] = {{0}};
-  for (int i = 0; i < sizeof(last3_color_array); ++i){
+  for (int i = 0; i < ARRAY_LENGTH(last3_color_array); ++i){
     update_color_array();
-    for(int j = 0; j < sizeof(last3_color_array[i]); ++j){ last3_color_array[i][j] = color_array[j]; }
+    for(int j = 0; j < ARRAY_LENGTH(last3_color_array[i]); ++j){ last3_color_array[i][j] = color_array[j]; }
   }
 
-  for (int i = 0; i < sizeof(color_ave_array); ++i){
+  for (int i = 0; i < ARRAY_LENGTH(color_ave_array); ++i){
     color_ave_array[i] = last3_color_array[0][i]/3 + last3_color_array[1][i]/3 + last3_color_array[2][i]/3;
   }
 
   SD_write("Color intensity: { RED , GREEN , BLUE , INFRARED } = { ");
-  for (int i = 0; i < sizeof(color_ave_array); ++i){
+  for (int i = 0; i < ARRAY_LENGTH(color_ave_array); ++i){
     SD_write(color_ave_array[i]);
     if (i != 3){
       SD_write(" , ");
+    } else {
+      SD_write(" ");
     }
   }
   SD_write("}\n");
@@ -272,7 +268,6 @@ void lift_stop(){
   SD_writeln("Lift stop");
 }
 
-
 void go_forward(int speed, int delay_time){
   digitalWrite(AIN1,HIGH);
   digitalWrite(AIN2,LOW);
@@ -284,6 +279,7 @@ void go_forward(int speed, int delay_time){
   delay_log(delay_time);
   stop();
 }
+
 void go_back(int speed, int delay_time){
   digitalWrite(AIN1,LOW);
   digitalWrite(AIN2,HIGH);
@@ -295,6 +291,7 @@ void go_back(int speed, int delay_time){
   delay_log(delay_time);
   stop();
 }
+
 void turn_left(int turn_speed, int delay_time){
   digitalWrite(AIN1,HIGH);
   digitalWrite(AIN2,LOW);
@@ -307,6 +304,7 @@ void turn_left(int turn_speed, int delay_time){
   delay_log(delay_time);
   stop();
 }
+
 void turn_right(int turn_speed, int delay_time){
   digitalWrite(AIN1,LOW);
   digitalWrite(AIN2,HIGH);
@@ -319,7 +317,6 @@ void turn_right(int turn_speed, int delay_time){
   delay_log(delay_time);
   stop();
 }
-
 
 void lift_up(int up_speed, int delay_time){
   digitalWrite(GearIN1,HIGH);
@@ -361,7 +358,7 @@ double measure_distance(){
   delay(300);
 
   return distance;
-  }
+}
 
 
 
@@ -371,17 +368,19 @@ void offset(){
   for(int i = 0; i < 10; ++i){
     turn_right(turn_speed, 150);
     take_color_ave();
-    for(int j = 0; j < sizeof(offset_val); ++j){
+    for(int j = 0; j < ARRAY_LENGTH(offset_val); ++j){
       offset_val[j] += color_ave_array[j]/10;
     }
   }
 
   SD_write("\noffset finish.\n");
   SD_write("offset_val: { RED , GREEN , BLUE , INFRARED } = { ");
-  for (int i = 0; i < sizeof(offset_val); ++i){
+  for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){
     SD_write(offset_val[i]);
     if (i != 3){
       SD_write(" , ");
+    } else {
+      SD_write(" ");
     }
   }
   SD_write("}\n");
@@ -396,10 +395,10 @@ void collect_unit(int color_select){
     //これは子機の方向を探すときに繰り返されるwhile
     while(true){
       take_color_ave();
-      for (int i = 0; i < sizeof(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
-      for (int i = 0; i < sizeof(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
-      for (int i = 0; i < sizeof(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
-      if(consective3_color_array[0][color_select] > offset_val[color_select] * 1.3 && consective3_color_array[0][color_select] < consective3_color_array[1][color_select] && consective3_color_array[2][color_select] < consective3_color_array[1][color_select] && consective3_color_array[0][color_select] != 0){
+      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
+      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
+      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
+      if(consective3_color_array[0][color_select] > offset_val[color_select] * color_threshold_ratio && consective3_color_array[0][color_select] < consective3_color_array[1][color_select] && consective3_color_array[2][color_select] < consective3_color_array[1][color_select] && consective3_color_array[0][color_select] != 0){
         turn_right(turn_speed, /* time = */100);
         break;
       } else {
@@ -445,14 +444,14 @@ void collect_unit(int color_select){
 void return_unit(){
   uint16_t consective3_color_array[3][4] = {{0}};
   int val;
-  while(1){
+  while(true){
     //これは拠点の方向を探すときに繰り返されるwhile
     while(true){
       take_color_ave();
-      for (int i = 0; i < sizeof(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
-      for (int i = 0; i < sizeof(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
-      for (int i = 0; i < sizeof(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
-      if(consective3_color_array[0][INFRARED] > offset_val[INFRARED] * 1.3 && consective3_color_array[0][INFRARED] < consective3_color_array[1][INFRARED] && consective3_color_array[2][INFRARED] < consective3_color_array[1][INFRARED] && consective3_color_array[0][INFRARED] != 0){
+      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
+      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
+      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
+      if(consective3_color_array[0][INFRARED] > offset_val[INFRARED] * color_threshold_ratio && consective3_color_array[0][INFRARED] < consective3_color_array[1][INFRARED] && consective3_color_array[2][INFRARED] < consective3_color_array[1][INFRARED] && consective3_color_array[0][INFRARED] != 0){
         turn_right(turn_speed, /* time = */100);
         break;
       } else {
@@ -462,9 +461,8 @@ void return_unit(){
 
     // ランイントレース
     val = analogRead(0);
-    if(val < photoresistor){
+    if(val < photoresistor_threshold){
       go_forward(speed, 500);
-
       turn_right(turn_speed, 1000);
     } else {
       break;

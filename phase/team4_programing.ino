@@ -29,8 +29,15 @@
 #define echoPin 0 // Echo Pin
 #define trigPin 1 // Trigger Pin
 
+#define RED 0
+#define GREEN 1
+#define BLUE 2
+#define INFRARED 3
+
 //変数・定数の定義
-int start_val;
+uint16_t offset_val[4] = {0,0,0,0};
+uint16_t color_array[4] = {0,0,0,0};
+uint16_t color_ave_array[4] = {0,0,0,0};
 int speed = 50; //モーターのスピード
 int turn_speed = 50; //回転時のモータースピード
 int up_speed = 50; // リフト上昇時のスピード
@@ -49,13 +56,15 @@ const uint16_t N = 500;
 
 const int photoresistor = 0; //フォトレジスタの閾値
 
+
+
+
 //一回だけ実行
 void setup() {
   Serial.begin(9600);
   Wire.begin();  //I2Cマスター接続
   //マニュアル積分時間倍数設定
   GAIN(N);
-  start_val = color_mean(select_red);
 
   pinMode(INPIN,INPUT);
   pinMode(LEDPIN,OUTPUT);
@@ -84,12 +93,10 @@ void setup() {
   //Serial.println(F("ok."));
   SdFile::dateTimeCallback( &dateTime );
 
-  SD_writeln("\n#################");
-  SD_writeln("##Program Start##");
-  SD_writeln("#################");
-  SD_write("Initial Value of Red (Calibration): ");
-  SD_writeln(start_val);
-  SD_write("\n");
+  SD_writeln("\n###################");
+  SD_writeln("## Program Start ##");
+  SD_writeln("###################");
+  offset();
 }
 //カラーセンサーにゲインを書きこむ
 void GAIN(uint16_t N) {
@@ -138,7 +145,7 @@ void SD_write(T SD_source){
   // ファイルが開けなかったらエラーを出力
   else {
     Serial.println(F("error opening datalog.txt"));
-  } 
+  }
 }
 
 //SDに書き込む関数２
@@ -157,7 +164,15 @@ void SD_writeln(T SD_source){
   // ファイルが開けなかったらエラーを出力
   else {
     Serial.println(F("error opening datalog.txt"));
-  } 
+  }
+}
+
+void delay_log(int delay_time){
+  delay(delay_time);
+
+  SD_write("delay for ");
+  SD_write(delay_time);
+  SD_writeln("ms");
 }
 
 //カラーセンサーで計測をする。これは次の関数(color)に使うだけ。
@@ -192,10 +207,8 @@ void WRITE(uint8_t Tint) {
 }
 
 //カラーセンサーで値をとる。戻り値は赤の値
-int measuring_color(int color_select) {
-  uint16_t datar, datag, datab, datair;
+void update_color_array() {
   uint8_t buff[8];
-  uint16_t color_value;
   WRITE(Tint);
   //I2C読み取り
   Wire.beginTransmission(ADDRESS);
@@ -207,106 +220,39 @@ int measuring_color(int color_select) {
   for (int i = 0; i < 7; i++) {
     buff[i] = Wire.read();
   }
-  datar = buff[0] << 8 | buff[1];   //上位下位結合16bit(赤)
-  datag = buff[2] << 8 | buff[3];   //上位下位結合16bit(緑)
-  datab = buff[4] << 8 | buff[5];   //上位下位結合16bit(青)
-  datair = buff[6] << 8 | buff[7];  //上位下位結合16bit(赤外)
+  color_array[RED] = buff[0] << 8 | buff[1];   //上位下位結合16bit(赤)
+  color_array[GREEN] = buff[2] << 8 | buff[3];   //上位下位結合16bit(緑)
+  color_array[BLUE] = buff[4] << 8 | buff[5];   //上位下位結合16bit(青)
+  color_array[INFRARED] = buff[6] << 8 | buff[7];  //上位下位結合16bit(赤外)
 
   Wire.endTransmission();
-  
-  switch(color_select) {
-    case 1:
-      color_value = datar;
-      break;
-    case 2:
-      color_value = datag;
-      break;
-    case 3:
-      color_value = datab;
-      break;
-    case 4:
-      color_value = datair;
-      break;
-
-  }
-  
-  return color_value;
 }
 
-int color_mean(int color_select){
-  int lst_color[] = {0,0,0}; 
-  String color_log;
+void take_color_ave(){
 
-  lst_color[0] = measuring_color(color_select);
-  lst_color[1] = measuring_color(color_select);
-  lst_color[2] = measuring_color(color_select);
-  int color_value = (lst_color[0])/3 + lst_color[1]/3 + lst_color[2]/3;
-  
-  switch(color_select) {
-    case 1:
-      color_log = "red";
-      break;
-    case 2:
-      color_log = "green";
-      break;
-    case 3:
-      color_log = "blue";
-      break;
-    case 4:
-      color_log = "infrared";
-      break;
-
+  uint16_t last3_color_array[3][4] = {{0}};
+  for (int i = 0; i < sizeof(last3_color_array); ++i){
+    update_color_array();
+    for(int j = 0; j < sizeof(last3_color_array[i]); ++j){ last3_color_array[i][j] = color_array[j]; }
   }
 
-  SD_write("\nMeasuring ");
-  SD_writeln(color_log);
-  SD_write("Color intensity: ");
-  SD_writeln(color_value);
-  return color_value;
-  
+  for (int i = 0; i < sizeof(color_ave_array); ++i){
+    color_ave_array[i] = last3_color_array[0][i]/3 + last3_color_array[1][i]/3 + last3_color_array[2][i]/3;
+  }
+
+  SD_write("Color intensity: { RED , GREEN , BLUE , INFRARED } = { ");
+  for (int i = 0; i < sizeof(color_ave_array); ++i){
+    SD_write(color_ave_array[i]);
+    if (i != 3){
+      SD_write(" , ");
+    }
+  }
+  SD_write("}\n");
+
 }
 
 //モーター関連の関数
-void goingforward(int speed){
-  digitalWrite(AIN1,HIGH);
-  digitalWrite(AIN2,LOW);
-  digitalWrite(BIN1,LOW);
-  digitalWrite(BIN2,HIGH);
-  analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed);
 
-  SD_writeln("\nGoing straight");
-}
-void goingback(int speed){
-  digitalWrite(AIN1,LOW);
-  digitalWrite(AIN2,HIGH);
-  digitalWrite(BIN1,HIGH);
-  digitalWrite(BIN2,LOW);
-  analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed);
-
-  SD_writeln("\nGoing back");
-}
-void turn_left(int turn_speed){
-  digitalWrite(AIN1,HIGH);
-  digitalWrite(AIN2,LOW);
-  digitalWrite(BIN1,HIGH);
-  digitalWrite(BIN2,LOW);
-  analogWrite(PWMA,turn_speed);
-  analogWrite(PWMB,turn_speed);  
-
-  SD_writeln("\nTurning_left");
-}
-void turn_right(int turn_speed){
-  digitalWrite(AIN1,LOW);
-  digitalWrite(AIN2,HIGH);
-  digitalWrite(BIN1,LOW);
-  digitalWrite(BIN2,HIGH);
-  analogWrite(PWMA,turn_speed);
-  analogWrite(PWMB,turn_speed);  
-
-  SD_writeln("\nTurning right");
-} 
 void stop(){
   digitalWrite(AIN1,LOW);
   digitalWrite(AIN2,LOW);
@@ -316,22 +262,6 @@ void stop(){
   SD_writeln("Stop moving");
 }
 
-void lift_up(int up_speed){
-  digitalWrite(GearIN1,HIGH);
-  digitalWrite(GearIN2,LOW);
-  analogWrite(PWMGear,up_speed);
-
-  SD_writeln("\nLift up");
-}
-
-void lift_down(int down_speed){
-  digitalWrite(GearIN1,HIGH);
-  digitalWrite(GearIN2,LOW);
-  analogWrite(PWMGear,down_speed);
-
-  SD_writeln("\nLift down");
-}
-
 void lift_stop(){
   digitalWrite(GearIN1,LOW);
   digitalWrite(GearIN2,LOW);
@@ -339,15 +269,84 @@ void lift_stop(){
   SD_writeln("Lift stop");
 }
 
+
+void go_forward(int speed, int delay_time){
+  digitalWrite(AIN1,HIGH);
+  digitalWrite(AIN2,LOW);
+  digitalWrite(BIN1,LOW);
+  digitalWrite(BIN2,HIGH);
+  analogWrite(PWMA,speed);
+  analogWrite(PWMB,speed);
+  SD_write("\nGo straight. ");
+  delay_log(delay_time);
+  stop();
+}
+void go_back(int speed, int delay_time){
+  digitalWrite(AIN1,LOW);
+  digitalWrite(AIN2,HIGH);
+  digitalWrite(BIN1,HIGH);
+  digitalWrite(BIN2,LOW);
+  analogWrite(PWMA,speed);
+  analogWrite(PWMB,speed);
+  SD_write("\nGo back. ");
+  delay_log(delay_time);
+  stop();
+}
+void turn_left(int turn_speed, int delay_time){
+  digitalWrite(AIN1,HIGH);
+  digitalWrite(AIN2,LOW);
+  digitalWrite(BIN1,HIGH);
+  digitalWrite(BIN2,LOW);
+  analogWrite(PWMA,turn_speed);
+  analogWrite(PWMB,turn_speed);
+
+  SD_write("\nTurn left. ");
+  delay_log(delay_time);
+  stop();
+}
+void turn_right(int turn_speed, int delay_time){
+  digitalWrite(AIN1,LOW);
+  digitalWrite(AIN2,HIGH);
+  digitalWrite(BIN1,LOW);
+  digitalWrite(BIN2,HIGH);
+  analogWrite(PWMA,turn_speed);
+  analogWrite(PWMB,turn_speed);
+
+  SD_write("\nTurn right. ");
+  delay_log(delay_time);
+  stop();
+}
+
+
+void lift_up(int up_speed, int delay_time){
+  digitalWrite(GearIN1,HIGH);
+  digitalWrite(GearIN2,LOW);
+  analogWrite(PWMGear,up_speed);
+
+  SD_write("\nLift up. ");
+  delay_log(delay_time);
+  lift_stop();
+}
+
+void lift_down(int down_speed, int delay_time){
+  digitalWrite(GearIN1,HIGH);
+  digitalWrite(GearIN2,LOW);
+  analogWrite(PWMGear,down_speed);
+
+  SD_write("\nLift down. ");
+  delay_log(delay_time);
+  lift_stop();
+}
+
 //超音波センサーの関数
-double measuring_distance(){
+double measure_distance(){
   double duration;
   double distance;
 
-  digitalWrite(trigPin, LOW); 
-  delayMicroseconds(2); 
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
   digitalWrite(trigPin, HIGH); //超音波を出力
-  delayMicroseconds( 10 ); //
+  delayMicroseconds(10); //
   digitalWrite(trigPin, LOW);
 
   duration = pulseIn(echoPin, HIGH); //センサからの入力
@@ -361,145 +360,127 @@ double measuring_distance(){
   return distance;
   }
 
-void delay_log(int delay_time){
-  delay(delay_time);
 
-  SD_write("delay for ");
-  SD_write(delay_time);
-  SD_writeln("ms");
+
+void offset(){
+
+  SD_write("\noffset start\n");
+  for(int i = 0; i < 10; ++i){
+    turn_right(turn_speed, 150);
+    take_color_ave();
+    for(int j = 0; j < sizeof(offset_val); ++j){
+      offset_val[j] += color_ave_array[j]/10;
+    }
+  }
+
+  SD_write("\noffset finish.\n");
+  SD_write("offset_val: { RED , GREEN , BLUE , INFRARED } = { ");
+  for (int i = 0; i < sizeof(offset_val); ++i){
+    SD_write(offset_val[i]);
+    if (i != 3){
+      SD_write(" , ");
+    }
+  }
+  SD_write("}\n");
 }
-  
 
-
-
-
-void collecting_LED(int color_select){
-  double Distance;
-  uint16_t array_color[] = {0,0,0};
+void collect_unit(int color_select){
+  double distance;
+  uint16_t consective3_color_array[3][4] = {{0}};
 
   //これは距離が20cm以下になるまで繰り返されるwhile
-  while(1){
+  while(true){
     //これは子機の方向を探すときに繰り返されるwhile
-    while(1){
-      int color_ave = color_mean(color_select);
-      array_color[0] = array_color[1];
-      array_color[1] = array_color[2];
-      array_color[2] = color_ave;
-      if(array_color[1] > start_val * 1.3 && array_color[0] < array_color[1] && array_color[2] < array_color[1] && array_color[0] != 0){
-        turn_right(turn_speed);
-        delay_log(100);
-        stop();
+    while(true){
+      take_color_ave();
+      for (int i = 0; i < sizeof(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
+      for (int i = 0; i < sizeof(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
+      for (int i = 0; i < sizeof(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
+      if(consective3_color_array[0][color_select] > offset_val[color_select] * 1.3 && consective3_color_array[0][color_select] < consective3_color_array[1][color_select] && consective3_color_array[2][color_select] < consective3_color_array[1][color_select] && consective3_color_array[0][color_select] != 0){
+        turn_right(turn_speed, /* time = */100);
         break;
-      }else{
-      turn_left(turn_speed);
-      delay_log(100);
-      stop();
+      } else {
+        turn_left(turn_speed, 100);
       }
     }
- 
-    Distance = measuring_distance();
-    if(Distance < 20 && Distance > 1){
+
+    distance = measure_distance();
+    if(distance < 20 && distance > 1){
       break;
-    }else{
-      goingforward(speed);
-      delay_log(1500);
-      stop();
-      turn_right(turn_speed);
-      delay_log(1000);
-      stop();
+    } else {
+      go_forward(speed, 800);
+      turn_right(turn_speed, 500);
     }
   }
 
 
-  while(1){
-    goingforward(speed);
-    delay_log(300);
-    stop();
-    Distance = measuring_distance();
-    if(Distance < 10){
+  while(true){
+    go_forward(speed, 300);
+    distance = measure_distance();
+    if(distance < 10){
       break;
     }
   }
 
-  goingforward(speed);
-  delay_log(1200);
-  stop();
-
-  lift_up(up_speed);
-  delay_log(1000);
-  lift_stop();
+  // 実際にリフト
+  go_forward(speed, 700);
+  lift_up(up_speed, 1000);
 
   //ここに回収判定。回収できなかったらアームを下げて後退する。
   if(digitalRead(INPIN) == HIGH){
-    turn_left(turn_speed);
-    delay_log(4000);
-    stop();
-  } else{
-      lift_down(down_speed);
-      delay_log(1000);
-      lift_stop();
+    turn_left(turn_speed, 4000);
+  } else {
 
-      goingback(speed);
-      delay_log(3000);
-      stop();
-      collecting_LED(color_select);
+    // 回収できない時。改善の余地あり。
+    lift_down(down_speed, 1000);
+    go_back(speed, 3000);
+    collect_unit(color_select);
     }
 }
 
 
-void returning_object(){
-  uint16_t array_color[] = {0,0,0};
-  SD_writeln(array_color[0]);
-  SD_writeln(array_color[1]);
-  SD_writeln(array_color[2]);
+void return_unit(){
+  uint16_t consective3_color_array[3][4] = {{0}};
+  int val;
   while(1){
-    while(1){
-      int color_ave = color_mean(select_infrared);
-      array_color[0] = array_color[1];
-      array_color[1] = array_color[2];
-      array_color[2] = color_ave;
-      if(array_color[1] > start_val * 1.3 && array_color[0] < array_color[1] && array_color[2] < array_color[1] && array_color[0] != 0){
-        turn_right(turn_speed);
-        delay_log(200);
-        stop();
+    //これは拠点の方向を探すときに繰り返されるwhile
+    while(true){
+      take_color_ave();
+      for (int i = 0; i < sizeof(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
+      for (int i = 0; i < sizeof(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
+      for (int i = 0; i < sizeof(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
+      if(consective3_color_array[0][INFRARED] > offset_val[INFRARED] * 1.3 && consective3_color_array[0][INFRARED] < consective3_color_array[1][INFRARED] && consective3_color_array[2][INFRARED] < consective3_color_array[1][INFRARED] && consective3_color_array[0][INFRARED] != 0){
+        turn_right(turn_speed, /* time = */100);
         break;
+      } else {
+        turn_left(turn_speed, 100);
       }
-      turn_left(turn_speed);
-      delay_log(200);
-      stop();
     }
- 
-    int val = analogRead(0);
-    if(val < photoresistor){
-      goingforward(speed);
-      delay_log(500);
-      stop();
 
-      turn_right(turn_speed);
-      delay_log(1000);
-      stop();
-    } else{
+    // ランイントレース
+    val = analogRead(0);
+    if(val < photoresistor){
+      go_forward(speed, 500);
+
+      turn_right(turn_speed, 1000);
+    } else {
       break;
     }
   }
-  lift_down(down_speed);
-  delay_log(1000);
-  lift_stop();
+  lift_down(down_speed, 1000);
 
-  turn_right(turn_speed);
-  delay_log(4000);
-  stop(); 
+  turn_right(turn_speed, 4000);
 
-}  
+}
 
 void loop(){
-  collecting_LED(select_red);
-  returning_object();
-  collecting_LED(select_blue);
-  returning_object();
-  collecting_LED(select_green);
-  returning_object();
+  collect_unit(RED);
+  return_unit();
+  collect_unit(BLUE);
+  return_unit();
+  collect_unit(GREEN);
+  return_unit();
   //子機を重ねるプログラムは作成中。カラーセンサーの閾値設定は不完全なため修正中。
 
-  while(1);
+  while(true);
 }
