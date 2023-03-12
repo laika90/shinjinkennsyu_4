@@ -53,7 +53,7 @@ const uint8_t Tint = 0;
 const uint16_t N = 500;
 
 const int photoresistor_threshold = 0; //フォトレジスタの閾値
-const double color_threshold_ratio = 1.3 // カラーセンサ閾値倍率
+const double color_threshold_ratio = 1.3; // カラーセンサ閾値倍率
 
 //一回だけ実行
 void setup() {
@@ -398,7 +398,8 @@ void collect_unit(int color_select){
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
-      if(consective3_color_array[0][color_select] > offset_val[color_select] * color_threshold_ratio && consective3_color_array[0][color_select] < consective3_color_array[1][color_select] && consective3_color_array[2][color_select] < consective3_color_array[1][color_select] && consective3_color_array[0][color_select] != 0){
+      if(consective3_color_array[0][color_select] > offset_val[color_select] * color_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[0][color_select] != 0){
+        consective3_color_array[3][4] = {{0}};
         turn_right(turn_speed, /* time = */100);
         break;
       } else {
@@ -451,7 +452,8 @@ void return_unit(){
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
-      if(consective3_color_array[0][INFRARED] > offset_val[INFRARED] * color_threshold_ratio && consective3_color_array[0][INFRARED] < consective3_color_array[1][INFRARED] && consective3_color_array[2][INFRARED] < consective3_color_array[1][INFRARED] && consective3_color_array[0][INFRARED] != 0){
+      if(consective3_color_array[0][INFRARED] > offset_val[INFRARED] * color_threshold_ratio && consective3_color_array[0][INFRARED] <= consective3_color_array[1][INFRARED] && consective3_color_array[2][INFRARED] <= consective3_color_array[1][INFRARED] && consective3_color_array[0][INFRARED] != 0){
+        consective3_color_array[3][4] = {{0}};
         turn_right(turn_speed, /* time = */100);
         break;
       } else {
