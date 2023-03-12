@@ -1,20 +1,20 @@
 #include "Wire.h"
 #include "SD.h"
 
-//I2C通信関係の定義
+// I2C通信関係の定義
 #define ADDRESS 0x2A
 #define CTRL 0x00
 #define tMSB 0x01
 #define tLSB 0x02
 #define dLSB 0x03
 
-//ピン番号の定義
+// ピン番号の定義
 
 //子機回収判定のpin
 #define INPIN 2
 #define LEDPIN 17
 
-//モーター類
+// モーター類
 #define AIN1 4
 #define AIN2 5
 #define PWMA 6
@@ -25,7 +25,7 @@
 #define GearIN2 16
 #define PWMGear 3
 
-//超音波センサー
+// 超音波センサー
 #define echoPin 0 // Echo Pin
 #define trigPin 1 // Trigger Pin
 
@@ -37,29 +37,33 @@
 // 配列の大きさをとるマクロ
 #define ARRAY_LENGTH(array) (sizeof(array) / sizeof(array[0]))
 
-//変数・定数の定義
+// 変数・定数の定義
 uint16_t offset_val[4] = {0,0,0,0};
 uint16_t color_array[4] = {0,0,0,0};
 uint16_t color_ave_array[4] = {0,0,0,0};
-int speed = 50; //モーターのスピード
-int turn_speed = 50; //回転時のモータースピード
-int up_speed = 50; // リフト上昇時のスピード
-int down_speed = 40; //リフト下降時のスピード
+const uint8_t speed = 50; // モーターのスピード
+const uint8_t turn_speed = 50; // 回転時のモータースピード
+const uint8_t up_speed = 50; // リフト上昇時のスピード
+const uint8_t down_speed = 40; // リフト下降時のスピード
 
-const int chipSelect = 10;//SDのチップセレクト
+const short int chipSelect = 10;// SDのチップセレクト
 
 //積分時間 00:87.5us, 01:1.4ms, 10:22.4ms, 11:179.2ms
 const uint8_t Tint = 0;
 const uint16_t N = 500;
 
-const int photoresistor_threshold = 0; //フォトレジスタの閾値
-const double color_threshold_ratio = 1.3; // カラーセンサ閾値倍率
+const short int photoresistor_threshold = 0; // フォトレジスタの閾値
+const float color_threshold_ratio = 1.3; // カラーセンサ閾値倍率
 
-//一回だけ実行
+const String front_shape = "\n#"; //"###############################";
+const String back_shape = "#";//"###############################\n\n";
+
+
+// 一回だけ実行
 void setup() {
   Serial.begin(9600);
-  Wire.begin();  //I2Cマスター接続
-  //マニュアル積分時間倍数設定
+  Wire.begin();  // I2Cマスター接続
+  // マニュアル積分時間倍数設定
   GAIN(N);
 
   pinMode(INPIN,INPUT);
@@ -86,16 +90,18 @@ void setup() {
     // 失敗、何もしない
     while(1);
   }
-  //Serial.println(F("ok."));
-  SdFile::dateTimeCallback( &dateTime );
 
+  // if (SD.exists("datalog.txt")) { SD.remove("datalog.txt"); }
+
+  // Serial.println(F("ok."));
+  SdFile::dateTimeCallback( &dateTime );
   SD_writeln("\n###################");
   SD_writeln("## Program Start ##");
   SD_writeln("###################");
   offset();
 
 }
-//カラーセンサーにゲインを書きこむ
+// カラーセンサーにゲインを書きこむ
 void GAIN(uint16_t N) {
   Wire.beginTransmission(ADDRESS);
   Wire.write(CTRL);  //コントロールバイトCALL
@@ -111,8 +117,7 @@ void GAIN(uint16_t N) {
   Wire.endTransmission();
 }
 
-
-//SDに必要な奴
+// SDに必要な奴
 void dateTime(uint16_t* date, uint16_t* time)
 {
   uint16_t year = 2023;
@@ -126,7 +131,7 @@ void dateTime(uint16_t* date, uint16_t* time)
   *time = FAT_TIME(hour, minute, second);
 }
 
-//SDに書き込む関数１
+// SDに書き込む関数１
 template <class T>
 void SD_write(T SD_source){
   // ファイルを開く
@@ -145,7 +150,7 @@ void SD_write(T SD_source){
   }
 }
 
-//SDに書き込む関数２
+// SDに書き込む関数２
 template <class T>
 void SD_writeln(T SD_source){
   // ファイルを開く
@@ -172,17 +177,17 @@ void delay_log(int delay_time){
   SD_writeln("ms");
 }
 
-//カラーセンサーで計測をする。これは次の関数(color)に使うだけ。
+// カラーセンサーで計測をする。これは次の関数(color)に使うだけ。
 void WRITE(uint8_t Tint) {
   uint8_t val;
-  //I2C書き込み
+  // I2C書き込み
   Wire.beginTransmission(ADDRESS);
-  Wire.write(CTRL);  //コントロールバイトCALL
+  Wire.write(CTRL);  // コントロールバイトCALL
   Wire.write(0b10000100 | Tint);
   Wire.endTransmission(false);
   Wire.beginTransmission(ADDRESS);
-  Wire.write(CTRL);               //コントロールバイトCALL
-  Wire.write(0b00001100 | Tint);  //ADC動作開始,wakeUp
+  Wire.write(CTRL);               // コントロールバイトCALL
+  Wire.write(0b00001100 | Tint);  // ADC動作開始,wakeUp
   Wire.endTransmission();
   switch (Tint) {
     case 0:
@@ -198,29 +203,29 @@ void WRITE(uint8_t Tint) {
       val = 360;
       break;
   }
-  //Serial.print("待機時間:");
-  //Serial.println(N * val);
-  delay(N * val);  //積分時間以上の待機時間
+  // Serial.print("待機時間:");
+  // Serial.println(N * val);
+  delay(N * val);  // 積分時間以上の待機時間
 }
 
-//カラーセンサーで値をとる。戻り値は赤の値
+// カラーセンサーで値をとる。戻り値は赤の値
 void update_color_array() {
   uint8_t buff[8];
   WRITE(Tint);
-  //I2C読み取り
+  // I2C読み取り
   Wire.beginTransmission(ADDRESS);
   Wire.write(dLSB);
   Wire.endTransmission(false);
-  //データサイズ要求
-  Wire.requestFrom(ADDRESS, 8);  //デバイスから8byte要求
-  //データ読み取り&データ処理(結合)
-  for (int i = 0; i < 7; i++) {
+  // データサイズ要求
+  Wire.requestFrom(ADDRESS, 8);  // デバイスから8byte要求
+  // データ読み取り&データ処理(結合)
+  for (int i = 0; i < 8; i++) {
     buff[i] = Wire.read();
   }
-  color_array[RED] = buff[0] << 8 | buff[1];   //上位下位結合16bit(赤)
-  color_array[GREEN] = buff[2] << 8 | buff[3];   //上位下位結合16bit(緑)
-  color_array[BLUE] = buff[4] << 8 | buff[5];   //上位下位結合16bit(青)
-  color_array[INFRARED] = buff[6] << 8 | buff[7];  //上位下位結合16bit(赤外)
+  color_array[RED] = buff[0] << 8 | buff[1];   // 上位下位結合16bit(赤)
+  color_array[GREEN] = buff[2] << 8 | buff[3];   // 上位下位結合16bit(緑)
+  color_array[BLUE] = buff[4] << 8 | buff[5];   // 上位下位結合16bit(青)
+  color_array[INFRARED] = buff[6] << 8 | buff[7];  // 上位下位結合16bit(赤外)
 
   Wire.endTransmission();
 }
@@ -364,7 +369,8 @@ double measure_distance(){
 
 void offset(){
 
-  SD_write("\n################################ offset start ################################\n");
+  SD_write(front_shape); SD_write(" offset start "); SD_write(back_shape);
+
   for(int i = 0; i < 10; ++i){
     turn_right(turn_speed, 150);
     take_color_ave();
@@ -386,14 +392,14 @@ void offset(){
     }
   }
   SD_write("}\n");
-  SD_write("\n################################ offset finish ###############################\n\n");
+  SD_write(front_shape); SD_write(" offset finish "); SD_write(back_shape);
 }
 
 void collect_unit(int color_select){
 
-  SD_write("\n################################ collect start ###############################\n\n");
+  SD_write(front_shape); SD_write(" collect start "); SD_write(back_shape);
 
-  double distance;
+  float distance;
   uint16_t consective3_color_array[3][4] = {{0}};
   short int forward_counter = 0;
 
@@ -440,7 +446,7 @@ void collect_unit(int color_select){
   //ここに回収判定。回収できなかったらアームを下げて後退する。
   if(digitalRead(INPIN) == HIGH){
     turn_left(turn_speed, 1800);
-    SD_write("\n################################ collect finish ###############################\n\n");
+    SD_write(front_shape); SD_write(" collect finish "); SD_write(back_shape);
   } else {
     // 回収できない時。改善の余地あり。
     lift_down(down_speed, 1000);
@@ -452,7 +458,7 @@ void collect_unit(int color_select){
 
 void return_unit(){
 
-  SD_write("\n################################ return start ###############################\n\n");
+  SD_write(front_shape); SD_write(" return start "); SD_write(back_shape);
 
   uint16_t consective3_color_array[3][4] = {{0}};
   int val;
@@ -485,7 +491,7 @@ void return_unit(){
 
   turn_right(turn_speed, 1800);
 
-  SD_write("\n################################ return finish ##############################\n\n");
+  SD_write(front_shape); SD_write(" return finish "); SD_write(back_shape);
 }
 
 void loop(){
@@ -495,7 +501,7 @@ void loop(){
   return_unit();
   collect_unit(GREEN);
   return_unit();
-  //子機を重ねるプログラムは作成中。カラーセンサーの閾値設定は不完全なため修正中。
+  // 子機を重ねるプログラムは作成中。カラーセンサーの閾値設定は不完全なため修正中。
 
   while(true);
 }
