@@ -364,16 +364,18 @@ double measure_distance(){
 
 void offset(){
 
-  SD_write("\noffset start\n");
+  SD_write("\n################################ offset start ################################\n");
   for(int i = 0; i < 10; ++i){
     turn_right(turn_speed, 150);
     take_color_ave();
     for(int j = 0; j < ARRAY_LENGTH(offset_val); ++j){
-      offset_val[j] += color_ave_array[j]/10;
+      offset_val[j] += color_ave_array[j];
     }
   }
+  for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){
+    offset_val[i] = offset_val[i] / 10;
+  }
 
-  SD_write("\noffset finish.\n");
   SD_write("offset_val: { RED , GREEN , BLUE , INFRARED } = { ");
   for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){
     SD_write(offset_val[i]);
@@ -384,11 +386,16 @@ void offset(){
     }
   }
   SD_write("}\n");
+  SD_write("\n################################ offset finish ###############################\n\n");
 }
 
 void collect_unit(int color_select){
+
+  SD_write("\n################################ collect start ###############################\n\n");
+
   double distance;
   uint16_t consective3_color_array[3][4] = {{0}};
+  short int forward_counter = 0;
 
   //これは距離が20cm以下になるまで繰り返されるwhile
   while(true){
@@ -411,7 +418,8 @@ void collect_unit(int color_select){
     if(distance < 20 && distance > 1){
       break;
     } else {
-      go_forward(speed, 800);
+      if (forward_counter < 3){ go_forward(speed, 3000); }
+      else { go_forward(speed, 1000); }
       turn_right(turn_speed, 500);
     }
   }
@@ -431,9 +439,9 @@ void collect_unit(int color_select){
 
   //ここに回収判定。回収できなかったらアームを下げて後退する。
   if(digitalRead(INPIN) == HIGH){
-    turn_left(turn_speed, 4000);
+    turn_left(turn_speed, 1800);
+    SD_write("\n################################ collect finish ###############################\n\n");
   } else {
-
     // 回収できない時。改善の余地あり。
     lift_down(down_speed, 1000);
     go_back(speed, 3000);
@@ -443,6 +451,9 @@ void collect_unit(int color_select){
 
 
 void return_unit(){
+
+  SD_write("\n################################ return start ###############################\n\n");
+
   uint16_t consective3_color_array[3][4] = {{0}};
   int val;
   while(true){
@@ -472,8 +483,9 @@ void return_unit(){
   }
   lift_down(down_speed, 1000);
 
-  turn_right(turn_speed, 4000);
+  turn_right(turn_speed, 1800);
 
+  SD_write("\n################################ return finish ##############################\n\n");
 }
 
 void loop(){
