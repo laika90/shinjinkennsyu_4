@@ -412,8 +412,9 @@ void collect_unit(int color_select){
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
-      if(consective3_color_array[0][color_select] > offset_val[color_select] * color_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[0][color_select] != 0 && consective3_color_array[1][INFRARED] < offset_val[INFRARED] * ir_threshold_ratio){
-        consective3_color_array[3][4] = {{0}};
+      if(consective3_color_array[1][color_select] > offset_val[color_select] * color_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[0][color_select] != 0 && consective3_color_array[1][INFRARED] < offset_val[INFRARED] * ir_threshold_ratio){
+        // consective3_color_arrayの初期化
+        for (int i = 0; i < ARRAY_LENGTH(consective3_color_array); ++i){ for (int j = 0;  j < ARRAY_LENGTH(consective3_color_array[i]); ++j){ consective3_color_array[i][j] = 0; }}
         turn_right(turn_speed, /* time = */100);
         break;
       } else {
@@ -470,8 +471,9 @@ void return_unit(){
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
       for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
-      if(consective3_color_array[0][INFRARED] > offset_val[INFRARED] * color_threshold_ratio && consective3_color_array[0][INFRARED] <= consective3_color_array[1][INFRARED] && consective3_color_array[2][INFRARED] <= consective3_color_array[1][INFRARED] && consective3_color_array[0][INFRARED] != 0){
-        consective3_color_array[3][4] = {{0}};
+      if(consective3_color_array[1][INFRARED] > offset_val[INFRARED] * color_threshold_ratio && consective3_color_array[0][INFRARED] <= consective3_color_array[1][INFRARED] && consective3_color_array[2][INFRARED] <= consective3_color_array[1][INFRARED] && consective3_color_array[0][INFRARED] != 0){
+        // consective3_color_arrayの初期化
+        for (int i = 0; i < ARRAY_LENGTH(consective3_color_array); ++i){ for (int j = 0;  j < ARRAY_LENGTH(consective3_color_array[i]); ++j){ consective3_color_array[i][j] = 0; }}
         turn_right(turn_speed, /* time = */100);
         break;
       } else {
