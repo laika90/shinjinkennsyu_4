@@ -335,8 +335,8 @@ void lift_up(int up_speed, int delay_time){
 }
 
 void lift_down(int down_speed, int delay_time){
-  digitalWrite(GearIN1,HIGH);
-  digitalWrite(GearIN2,LOW);
+  digitalWrite(GearIN1,LOW);
+  digitalWrite(GearIN2,HIGH);
   analogWrite(PWMGear,down_speed);
 
   SD_write("\nLift down. ");
