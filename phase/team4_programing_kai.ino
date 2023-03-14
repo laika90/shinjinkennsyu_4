@@ -43,8 +43,8 @@ uint16_t color_array[4] = {0,0,0,0};
 uint16_t color_ave_array[4] = {0,0,0,0};
 const uint8_t speed = 50; // モーターのスピード
 const uint8_t turn_speed = 50; // 回転時のモータースピード
-const uint8_t up_speed = 50; // リフト上昇時のスピード
-const uint8_t down_speed = 40; // リフト下降時のスピード
+const uint8_t up_speed = 75; // リフト上昇時のスピード
+const uint8_t down_speed = 30; // リフト下降時のスピード
 
 const short int chipSelect = 10;// SDのチップセレクト
 
@@ -66,10 +66,8 @@ void setup() {
   Wire.begin();  // I2Cマスター接続
   // マニュアル積分時間倍数設定
   GAIN(N);
-
   pinMode(INPIN,INPUT);
   pinMode(LEDPIN,OUTPUT);
-
   pinMode(AIN1,OUTPUT);
   pinMode(AIN2,OUTPUT);
   pinMode(PWMA,OUTPUT);
@@ -375,13 +373,9 @@ void offset(){
   for(int i = 0; i < 10; ++i){
     turn_right(turn_speed, 150);
     take_color_ave();
-    for(int j = 0; j < ARRAY_LENGTH(offset_val); ++j){
-      offset_val[j] += color_ave_array[j];
-    }
+    for(int j = 0; j < ARRAY_LENGTH(offset_val); ++j){ offset_val[j] += color_ave_array[j]; }
   }
-  for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){
-    offset_val[i] = offset_val[i] / 10;
-  }
+  for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){ offset_val[i] = offset_val[i] / 10; }
 
   SD_write("offset_val: { RED , GREEN , BLUE , INFRARED } = { ");
   for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){
@@ -396,7 +390,7 @@ void offset(){
   SD_write(front_shape); SD_write(" offset finish "); SD_write(back_shape);
 }
 
-void collect_unit(int color_select){
+void collect_unit(int color_select, bool has_child_unit){
 
   SD_write(front_shape); SD_write(" collect start "); SD_write(back_shape);
 
@@ -415,10 +409,10 @@ void collect_unit(int color_select){
       if(consective3_color_array[1][color_select] > offset_val[color_select] * color_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[0][color_select] != 0 && consective3_color_array[1][INFRARED] < offset_val[INFRARED] * ir_threshold_ratio){
         // consective3_color_arrayの初期化
         for (int i = 0; i < ARRAY_LENGTH(consective3_color_array); ++i){ for (int j = 0;  j < ARRAY_LENGTH(consective3_color_array[i]); ++j){ consective3_color_array[i][j] = 0; }}
-        turn_right(turn_speed, /* time = */100);
+        turn_right(turn_speed, 100);
         break;
       } else {
-        turn_left(turn_speed, 100);
+        turn_left(turn_speed, 50);
       }
     }
 
@@ -441,9 +435,19 @@ void collect_unit(int color_select){
     }
   }
 
-  // 実際にリフト
-  go_forward(speed, 700);
-  lift_up(up_speed, 1000);
+  // 子機回収動作
+  if (!has_child_unit){
+    go_back(speed, 2000);
+    lift_down(down_speed, 12500);
+  } else {
+    // 子機を持っているなら、積み重ね
+    go_forward(speed, 500);
+    lift_down(down_speed, 8000);
+    go_back(speed, 2000);
+    lift_down(down_speed, 4500);
+  }
+  go_forward(speed, 2500);
+  lift_up(up_speed, 5000);
 
   //ここに回収判定。回収できなかったらアームを下げて後退する。
   if(digitalRead(INPIN) == HIGH){
@@ -477,7 +481,7 @@ void return_unit(){
         turn_right(turn_speed, /* time = */100);
         break;
       } else {
-        turn_left(turn_speed, 100);
+        turn_left(turn_speed, 50);
       }
     }
 
@@ -498,11 +502,10 @@ void return_unit(){
 }
 
 void loop(){
-  collect_unit(RED);
+  collect_unit(RED, /* has_child_unit = */ false);
   return_unit();
-  collect_unit(BLUE);
-  return_unit();
-  collect_unit(GREEN);
+  collect_unit(BLUE, /* has_child_unit = */ false);
+  collect_unit(GREEN, /* has_child_unit = */ true);
   return_unit();
   // 子機を重ねるプログラムは作成中。カラーセンサーの閾値設定は不完全なため修正中。
 
