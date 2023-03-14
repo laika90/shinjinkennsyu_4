@@ -101,6 +101,7 @@ void setup() {
   SD_writeln("## Program Start ##");
   SD_writeln("###################");
   offset();
+  lift_up(50, 7000);
 
 }
 // カラーセンサーにゲインを書きこむ
@@ -281,7 +282,7 @@ void go_forward(int speed, int delay_time){
   digitalWrite(BIN1,LOW);
   digitalWrite(BIN2,HIGH);
   analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed);
+  analogWrite(PWMB,speed+15);
   SD_write("\nGo straight. ");
   delay_log(delay_time);
   stop();
@@ -293,7 +294,7 @@ void go_back(int speed, int delay_time){
   digitalWrite(BIN1,HIGH);
   digitalWrite(BIN2,LOW);
   analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed);
+  analogWrite(PWMB,speed+15);
   SD_write("\nGo back. ");
   delay_log(delay_time);
   stop();
@@ -305,7 +306,7 @@ void turn_left(int turn_speed, int delay_time){
   digitalWrite(BIN1,HIGH);
   digitalWrite(BIN2,LOW);
   analogWrite(PWMA,turn_speed);
-  analogWrite(PWMB,turn_speed);
+  analogWrite(PWMB,turn_speed+15);
 
   SD_write("\nTurn left. ");
   delay_log(delay_time);
@@ -318,7 +319,7 @@ void turn_right(int turn_speed, int delay_time){
   digitalWrite(BIN1,LOW);
   digitalWrite(BIN2,HIGH);
   analogWrite(PWMA,turn_speed);
-  analogWrite(PWMB,turn_speed);
+  analogWrite(PWMB,turn_speed+15);
 
   SD_write("\nTurn right. ");
   delay_log(delay_time);
@@ -419,8 +420,8 @@ void search_for(int color_select){
     take_color_ave();
     update_consective3_color_array();
     bool find_object;
-    if (color_select == INFRARED){ find_object = is_local_maximum(color_select) && !is_null(color_select); }
-    else {find_object = is_local_maximum(color_select) && !is_null(color_select) && !is_base; }
+    if (color_select == INFRARED){ find_object = is_local_maximum(color_select) /*&& !is_null(color_select)*/; }
+    else { find_object = is_local_maximum(color_select) && !is_null(color_select) /*&& !is_base()*/; }
     if(find_object){
       reset_consective3_color_array();
       turn_right(turn_speed, 100);
@@ -428,7 +429,7 @@ void search_for(int color_select){
     } else {
       turn_left(turn_speed, 50);
       ++stuck_counter;
-      if (stuck_counter > 5 && consective3_color_array[1][color_select] > 0){
+      if (stuck_counter > 5 && consective3_color_array[2][color_select] > 0 && consective3_color_array[1][color_select] > 0 && consective3_color_array[0][color_select] > 0){
         SD_writeln("$ stuck $");
 
         // 謎のモールス的な
@@ -494,12 +495,12 @@ void lift_unit(bool has_child_unit){
     lift_down(down_speed, 12500);
   } else {
     // 子機を持っているなら、積み重ね
-    go_forward(speed, 500);
+    go_forward(speed, 1000);
     lift_down(down_speed, 8000);
     go_back(speed, 2000);
     lift_down(down_speed, 4500);
   }
-  go_forward(speed, 2500);
+  go_forward(speed, 3000);
   lift_up(up_speed, 5000);
 }
 
@@ -508,8 +509,12 @@ bool hold_unit(){
   int end_time;
   while(digitalRead(INPIN) == HIGH){
     end_time = millis();
-    if (end_time - start_time > 4000){ return true; }
+    if (end_time - start_time > 4000){
+      SD_writeln("hold unit is true");
+      return true;
+    }
   }
+  SD_writeln("hold unit is false. restart collecting unit.");
   return false;
 }
 
@@ -529,6 +534,7 @@ void collect_unit(int color_select, bool has_child_unit){
     // 回収できない時。改善の余地あり。
     go_back(speed, 3000);
     lift_down(down_speed, 12500);
+    lift_up(50, 7000);
     collect_unit(color_select, has_child_unit);
     }
 }
@@ -536,19 +542,23 @@ void collect_unit(int color_select, bool has_child_unit){
 void approach_base(){
   digitalWrite(LEDPIN, HIGH);
   bool is_countinue = true;
-  while(true){
-    int photo_val;
-    int start_time = millis();
-    int end_time = millis();
+  int photo_val;
+  int start_time;
+  int end_time;
+  while(is_countinue){
     search_for(INFRARED);
-    while(end_time - start_time > 3000){
+    start_time = millis();
+    end_time = millis();
+    while(end_time - start_time < 3000){
       go_forward(speed, 50);
       photo_val = analogRead(PHOTO_PIN);
-      if (photo_val > 500){
+      SD_write("photo_val: ");
+      SD_writeln(photo_val);
+      if (photo_val < 300){
         is_countinue = false;
         break;
       }
-      end_time = millis();
+        end_time = millis();
     }
   }
   digitalWrite(LEDPIN, LOW);
@@ -565,6 +575,7 @@ void return_unit(){
   go_forward(speed, 500);
   go_back(speed, 2500);
   turn_right(turn_speed, 1800);
+  lift_up(50, 7000);
 
   SD_write(front_shape); SD_write(" return finish "); SD_write(back_shape);
 }
