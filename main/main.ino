@@ -24,6 +24,7 @@
 #define GearIN1 15
 #define GearIN2 16
 #define PWMGear 3
+#define PHOTO_PIN 0
 
 // 超音波センサー
 #define echoPin 0 // Echo Pin
@@ -41,6 +42,7 @@
 uint16_t offset_val[4] = {0,0,0,0};
 uint16_t color_array[4] = {0,0,0,0};
 uint16_t color_ave_array[4] = {0,0,0,0};
+uint16_t consective3_color_array[3][4] = {{0}};
 const uint8_t speed = 50; // モーターのスピード
 const uint8_t turn_speed = 50; // 回転時のモータースピード
 const uint8_t up_speed = 75; // リフト上昇時のスピード
@@ -68,6 +70,7 @@ void setup() {
   GAIN(N);
   pinMode(INPIN,INPUT);
   pinMode(LEDPIN,OUTPUT);
+  pinMode(PHOTO_PIN, INPUT);
   pinMode(AIN1,OUTPUT);
   pinMode(AIN2,OUTPUT);
   pinMode(PWMA,OUTPUT);
@@ -364,8 +367,6 @@ double measure_distance(){
   return distance;
 }
 
-
-
 void offset(){
 
   SD_write(front_shape); SD_write(" offset start "); SD_write(back_shape);
@@ -390,43 +391,94 @@ void offset(){
   SD_write(front_shape); SD_write(" offset finish "); SD_write(back_shape);
 }
 
-void collect_unit(int color_select, bool has_child_unit){
+void update_consective3_color_array(){
+  for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
+  for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
+  for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
+}
 
-  SD_write(front_shape); SD_write(" collect start "); SD_write(back_shape);
+void reset_consective3_color_array(){
+  for (int i = 0; i < ARRAY_LENGTH(consective3_color_array); ++i){ for (int j = 0;  j < ARRAY_LENGTH(consective3_color_array[i]); ++j){ consective3_color_array[i][j] = 0; }}
+}
 
-  float distance;
-  uint16_t consective3_color_array[3][4] = {{0}};
-  short int forward_counter = 0;
+bool is_local_maximum(int color_select){
+  return consective3_color_array[1][color_select] > offset_val[color_select] * color_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select];
+}
 
-  //これは距離が20cm以下になるまで繰り返されるwhile
+bool is_null(int color_select){
+  return consective3_color_array[0][color_select] == 0;
+}
+
+bool is_base(){
+  return consective3_color_array[1][INFRARED] > offset_val[INFRARED] * ir_threshold_ratio;
+}
+
+void search_for(int color_select){
+  int stuck_counter = 0;
   while(true){
-    //これは子機の方向を探すときに繰り返されるwhile
-    while(true){
-      take_color_ave();
-      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
-      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
-      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
-      if(consective3_color_array[1][color_select] > offset_val[color_select] * color_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[0][color_select] != 0 && consective3_color_array[1][INFRARED] < offset_val[INFRARED] * ir_threshold_ratio){
-        // consective3_color_arrayの初期化
-        for (int i = 0; i < ARRAY_LENGTH(consective3_color_array); ++i){ for (int j = 0;  j < ARRAY_LENGTH(consective3_color_array[i]); ++j){ consective3_color_array[i][j] = 0; }}
-        turn_right(turn_speed, 100);
-        break;
-      } else {
-        turn_left(turn_speed, 50);
+    take_color_ave();
+    update_consective3_color_array();
+    bool find_object;
+    if (color_select == INFRARED){ find_object = is_local_maximum(color_select) && !is_null(color_select); }
+    else {find_object = is_local_maximum(color_select) && !is_null(color_select) && !is_base; }
+    if(find_object){
+      reset_consective3_color_array();
+      turn_right(turn_speed, 100);
+      break;
+    } else {
+      turn_left(turn_speed, 50);
+      ++stuck_counter;
+      if (stuck_counter > 5 && consective3_color_array[1][color_select] > 0){
+        SD_writeln("$ stuck $");
+
+        // 謎のモールス的な
+        digitalWrite(LEDPIN, HIGH);
+        delay(100);
+        digitalWrite(LEDPIN, LOW);
+
+        go_back(speed, 1000);
+        stuck_counter = 0;
+      }
+      else if (is_local_maximum(INFRARED) && !is_null(INFRARED)){
+        SD_writeln("can't find the child unit");
+
+        // 謎のモールス的な
+        digitalWrite(LEDPIN, HIGH);
+        delay(100);
+        digitalWrite(LEDPIN, LOW);
+        delay(100);
+        digitalWrite(LEDPIN, HIGH);
+        delay(100);
+        digitalWrite(LEDPIN, LOW);
+
+        turn_right(turn_speed, 1800);
+        go_forward(speed, 2000);
       }
     }
+  }
+}
 
+void roughly_approach(int color_select){
+  float distance;
+  short int forward_counter = 0;
+  while(true){
+    search_for(color_select);
     distance = measure_distance();
     if(distance < 20 && distance > 1){
       break;
     } else {
-      if (forward_counter < 3){ go_forward(speed, 3000); }
+      if (forward_counter < 3){
+        go_forward(speed, 3000);
+        ++forward_counter;
+      }
       else { go_forward(speed, 1000); }
       turn_right(turn_speed, 500);
     }
   }
+}
 
-
+void precisely_approach(int color_select){
+  float distance;
   while(true){
     go_forward(speed, 300);
     distance = measure_distance();
@@ -434,8 +486,9 @@ void collect_unit(int color_select, bool has_child_unit){
       break;
     }
   }
+}
 
-  // 子機回収動作
+void lift_unit(bool has_child_unit){
   if (!has_child_unit){
     go_back(speed, 2000);
     lift_down(down_speed, 12500);
@@ -448,54 +501,69 @@ void collect_unit(int color_select, bool has_child_unit){
   }
   go_forward(speed, 2500);
   lift_up(up_speed, 5000);
+}
+
+bool hold_unit(){
+  int start_time = millis();
+  int end_time;
+  while(digitalRead(INPIN) == HIGH){
+    end_time = millis();
+    if (end_time - start_time > 4000){ return true; }
+  }
+  return false;
+}
+
+void collect_unit(int color_select, bool has_child_unit){
+
+  SD_write(front_shape); SD_write(" collect start "); SD_write(back_shape);
+
+  roughly_approach(color_select);
+  precisely_approach(color_select);
+  lift_unit(has_child_unit);
 
   //ここに回収判定。回収できなかったらアームを下げて後退する。
-  if(digitalRead(INPIN) == HIGH){
+  if(hold_unit()){
     turn_left(turn_speed, 1800);
     SD_write(front_shape); SD_write(" collect finish "); SD_write(back_shape);
   } else {
     // 回収できない時。改善の余地あり。
-    lift_down(down_speed, 1000);
     go_back(speed, 3000);
-    collect_unit(color_select);
+    lift_down(down_speed, 12500);
+    collect_unit(color_select, has_child_unit);
     }
 }
 
+void approach_base(){
+  digitalWrite(LEDPIN, HIGH);
+  bool is_countinue = true;
+  while(true){
+    int photo_val;
+    int start_time = millis();
+    int end_time = millis();
+    search_for(INFRARED);
+    while(end_time - start_time > 3000){
+      go_forward(speed, 50);
+      photo_val = analogRead(PHOTO_PIN);
+      if (photo_val > 500){
+        is_countinue = false;
+        break;
+      }
+      end_time = millis();
+    }
+  }
+  digitalWrite(LEDPIN, LOW);
+}
 
 void return_unit(){
 
   SD_write(front_shape); SD_write(" return start "); SD_write(back_shape);
 
-  uint16_t consective3_color_array[3][4] = {{0}};
-  int val;
-  while(true){
-    //これは拠点の方向を探すときに繰り返されるwhile
-    while(true){
-      take_color_ave();
-      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
-      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
-      for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
-      if(consective3_color_array[1][INFRARED] > offset_val[INFRARED] * color_threshold_ratio && consective3_color_array[0][INFRARED] <= consective3_color_array[1][INFRARED] && consective3_color_array[2][INFRARED] <= consective3_color_array[1][INFRARED] && consective3_color_array[0][INFRARED] != 0){
-        // consective3_color_arrayの初期化
-        for (int i = 0; i < ARRAY_LENGTH(consective3_color_array); ++i){ for (int j = 0;  j < ARRAY_LENGTH(consective3_color_array[i]); ++j){ consective3_color_array[i][j] = 0; }}
-        turn_right(turn_speed, /* time = */100);
-        break;
-      } else {
-        turn_left(turn_speed, 50);
-      }
-    }
-
-    // ランイントレース
-    val = analogRead(0);
-    if(val < photoresistor_threshold){
-      go_forward(speed, 500);
-      turn_right(turn_speed, 1000);
-    } else {
-      break;
-    }
-  }
-  lift_down(down_speed, 1000);
-
+  digitalWrite(LEDPIN, HIGH);
+  approach_base();
+  //子機降ろす
+  lift_down(down_speed, 12500);
+  go_forward(speed, 500);
+  go_back(speed, 2500);
   turn_right(turn_speed, 1800);
 
   SD_write(front_shape); SD_write(" return finish "); SD_write(back_shape);
