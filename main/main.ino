@@ -41,8 +41,8 @@
 // 変数・定数の定義
 uint16_t offset_val[4] = {0,0,0,0};
 uint16_t color_array[4] = {0,0,0,0};
-uint16_t color_ave_array[4] = {0,0,0,0};
 uint16_t consective3_color_array[3][4] = {{0}};
+short int find_counter = 0;
 const uint8_t speed = 50; // モーターのスピード
 const uint8_t turn_speed = 50; // 回転時のモータースピード
 const uint8_t up_speed = 75; // リフト上昇時のスピード
@@ -52,14 +52,14 @@ const short int chipSelect = 10;// SDのチップセレクト
 
 //積分時間 00:87.5us, 01:1.4ms, 10:22.4ms, 11:179.2ms
 const uint8_t Tint = 0;
-const uint16_t N = 500;
+const uint16_t N = 3120;
 
-const short int photoresistor_threshold = 0; // フォトレジスタの閾値
+const short int photoresistor_threshold = 300; // フォトレジスタの閾値
 const float color_threshold_ratio = 1.5; // カラーセンサ閾値倍率
 const float ir_threshold_ratio =2;
 
-const String front_shape = "\n#"; //"###############################";
-const String back_shape = "#";//"###############################\n\n";
+const String front_sharp = "\n#"; //"###############################";
+const String back_sharp = "#\n";//"###############################\n\n";
 
 
 // 一回だけ実行
@@ -108,15 +108,15 @@ void setup() {
 void GAIN(uint16_t N) {
   Wire.beginTransmission(ADDRESS);
   Wire.write(CTRL);  //コントロールバイトCALL
-  Wire.write(0b11100100);
+  Wire.write(0b11101100);
   Wire.endTransmission(false);
   Wire.beginTransmission(ADDRESS);
   Wire.write(tMSB);  //積分時間上位
-  Wire.write(N >> 8);
+  Wire.write(0b00001100);
   Wire.endTransmission(false);
   Wire.beginTransmission(ADDRESS);
   Wire.write(tLSB);  //積分時間下位
-  Wire.write(N);
+  Wire.write(0b00110000);
   Wire.endTransmission();
 }
 
@@ -186,32 +186,16 @@ void WRITE(uint8_t Tint) {
   // I2C書き込み
   Wire.beginTransmission(ADDRESS);
   Wire.write(CTRL);  // コントロールバイトCALL
-  Wire.write(0b10000100 | Tint);
+  Wire.write(0b10001100 | Tint);
   Wire.endTransmission(false);
   Wire.beginTransmission(ADDRESS);
   Wire.write(CTRL);               // コントロールバイトCALL
   Wire.write(0b00001100 | Tint);  // ADC動作開始,wakeUp
   Wire.endTransmission();
-  switch (Tint) {
-    case 0:
-      val = 1;
-      break;
-    case 1:
-      val = 3;
-      break;
-    case 2:
-      val = 45;
-      break;
-    case 3:
-      val = 360;
-      break;
-  }
-  // Serial.print("待機時間:");
-  // Serial.println(N * val);
-  delay(N * val);  // 積分時間以上の待機時間
+  delay(2200);  // 積分用待機時間。546ms * 4色。一回の処理にかかる時間。
 }
 
-// カラーセンサーで値をとる。戻り値は赤の値
+// カラーセンサーで値をとる。
 void update_color_array() {
   uint8_t buff[8];
   WRITE(Tint);
@@ -231,23 +215,11 @@ void update_color_array() {
   color_array[INFRARED] = buff[6] << 8 | buff[7];  // 上位下位結合16bit(赤外)
 
   Wire.endTransmission();
-}
 
-void take_color_ave(){
-
-  uint16_t last3_color_array[3][4] = {{0}};
-  for (int i = 0; i < ARRAY_LENGTH(last3_color_array); ++i){
-    update_color_array();
-    for(int j = 0; j < ARRAY_LENGTH(last3_color_array[i]); ++j){ last3_color_array[i][j] = color_array[j]; }
-  }
-
-  for (int i = 0; i < ARRAY_LENGTH(color_ave_array); ++i){
-    color_ave_array[i] = last3_color_array[0][i]/3 + last3_color_array[1][i]/3 + last3_color_array[2][i]/3;
-  }
-
+  // 出力のフォーマット
   SD_write("Color intensity: { RED , GREEN , BLUE , INFRARED } = { ");
-  for (int i = 0; i < ARRAY_LENGTH(color_ave_array); ++i){
-    SD_write(color_ave_array[i]);
+  for (int i = 0; i < ARRAY_LENGTH(color_array); ++i){
+    SD_write(color_array[i]);
     if (i != 3){
       SD_write(" , ");
     } else {
@@ -259,7 +231,6 @@ void take_color_ave(){
 }
 
 //モーター関連の関数
-
 void stop(){
   digitalWrite(AIN1,LOW);
   digitalWrite(AIN2,LOW);
@@ -282,7 +253,7 @@ void go_forward(int speed, int delay_time){
   digitalWrite(BIN1,LOW);
   digitalWrite(BIN2,HIGH);
   analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed+15);
+  analogWrite(PWMB,speed+8);
   SD_write("\nGo straight. ");
   delay_log(delay_time);
   stop();
@@ -294,34 +265,34 @@ void go_back(int speed, int delay_time){
   digitalWrite(BIN1,HIGH);
   digitalWrite(BIN2,LOW);
   analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed+15);
+  analogWrite(PWMB,speed+8);
   SD_write("\nGo back. ");
   delay_log(delay_time);
   stop();
 }
 
-void turn_left(int turn_speed, int delay_time){
+void turn_right(int turn_speed, int delay_time){
   digitalWrite(AIN1,HIGH);
   digitalWrite(AIN2,LOW);
   digitalWrite(BIN1,HIGH);
   digitalWrite(BIN2,LOW);
   analogWrite(PWMA,turn_speed);
-  analogWrite(PWMB,turn_speed+15);
+  analogWrite(PWMB,turn_speed+8);
 
-  SD_write("\nTurn left. ");
+  SD_write("\nTurn right. ");
   delay_log(delay_time);
   stop();
 }
 
-void turn_right(int turn_speed, int delay_time){
+void turn_left(int turn_speed, int delay_time){
   digitalWrite(AIN1,LOW);
   digitalWrite(AIN2,HIGH);
   digitalWrite(BIN1,LOW);
   digitalWrite(BIN2,HIGH);
   analogWrite(PWMA,turn_speed);
-  analogWrite(PWMB,turn_speed+15);
+  analogWrite(PWMB,turn_speed+8);
 
-  SD_write("\nTurn right. ");
+  SD_write("\nTurn left. ");
   delay_log(delay_time);
   stop();
 }
@@ -370,14 +341,21 @@ double measure_distance(){
 
 void offset(){
 
-  SD_write(front_shape); SD_write(" offset start "); SD_write(back_shape);
+  SD_write(front_sharp); SD_write(" offset start "); SD_write(back_sharp);
 
-  for(int i = 0; i < 10; ++i){
-    turn_right(turn_speed, 150);
-    take_color_ave();
-    for(int j = 0; j < ARRAY_LENGTH(offset_val); ++j){ offset_val[j] += color_ave_array[j]; }
-  }
-  for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){ offset_val[i] = offset_val[i] / 10; }
+  // 三か所で色をとる。合計約7秒。
+  update_color_array();
+  for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){ offset_val[i] += color_array[i]; }
+  turn_left(turn_speed, 150);
+  update_color_array();
+  for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){ offset_val[i] += color_array[i]; }
+  turn_right(turn_speed, 300);
+  update_color_array();
+  for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){ offset_val[i] += color_array[i]; }
+  turn_left(turn_speed, 150);
+
+  // 全体を1/3
+  for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){ offset_val[i] = offset_val[i]/3; }
 
   SD_write("offset_val: { RED , GREEN , BLUE , INFRARED } = { ");
   for (int i = 0; i < ARRAY_LENGTH(offset_val); ++i){
@@ -389,13 +367,13 @@ void offset(){
     }
   }
   SD_write("}\n");
-  SD_write(front_shape); SD_write(" offset finish "); SD_write(back_shape);
+  SD_write(front_sharp); SD_write(" offset finish "); SD_write(back_sharp);
 }
 
 void update_consective3_color_array(){
   for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[0]); ++i){ consective3_color_array[0][i] = consective3_color_array[1][i]; }
   for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){ consective3_color_array[1][i] = consective3_color_array[2][i]; }
-  for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_ave_array[i]; }
+  for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[2]); ++i){ consective3_color_array[2][i] = color_array[i]; }
 }
 
 void reset_consective3_color_array(){
@@ -414,46 +392,65 @@ bool is_base(){
   return consective3_color_array[1][INFRARED] > offset_val[INFRARED] * ir_threshold_ratio;
 }
 
+bool is_maximum(int color_select){
+  int max_index = RED;
+  for (int i = 0; i < ARRAY_LENGTH(consective3_color_array[1]); ++i){
+    if (consective3_color_array[1][i] > consective3_color_array[1][max_index]){
+      max_index = i;
+    }
+  }
+  return max_index == color_select;
+}
+
 void search_for(int color_select){
   int stuck_counter = 0;
   while(true){
-    take_color_ave();
+    update_color_array();
     update_consective3_color_array();
     bool find_object;
-    if (color_select == INFRARED){ find_object = is_local_maximum(color_select) /*&& !is_null(color_select)*/; }
-    else { find_object = is_local_maximum(color_select) && !is_null(color_select) /*&& !is_base()*/; }
+    if (color_select == INFRARED){ find_object = is_local_maximum(color_select) /* && is_maximum(color_select)&& !is_null(color_select)*/; }
+    else { find_object = is_local_maximum(color_select) && !is_null(color_select) && is_maximum(color_select)/*&& !is_base()*/; }
     if(find_object){
       reset_consective3_color_array();
-      turn_right(turn_speed, 100);
+      turn_right(turn_speed, 70);
+      find_counter += 1;
+      stuck_counter = 0;
       break;
     } else {
       turn_left(turn_speed, 50);
       ++stuck_counter;
-      if (stuck_counter > 5 && consective3_color_array[2][color_select] > 0 && consective3_color_array[1][color_select] > 0 && consective3_color_array[0][color_select] > 0){
+      if (stuck_counter > 15 && find_counter > 1){
         SD_writeln("$ stuck $");
 
         // 謎のモールス的な
         digitalWrite(LEDPIN, HIGH);
-        delay(100);
+        delay(500);
         digitalWrite(LEDPIN, LOW);
+
+        // 再点灯
+        if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
 
         go_back(speed, 1000);
         stuck_counter = 0;
+        reset_consective3_color_array();
       }
-      else if (is_local_maximum(INFRARED) && !is_null(INFRARED)){
-        SD_writeln("can't find the child unit");
+      else if (stuck_counter > 20 && find_counter == 0){
+        SD_writeln("can't find the child unit or base");
 
         // 謎のモールス的な
         digitalWrite(LEDPIN, HIGH);
-        delay(100);
+        delay(500);
         digitalWrite(LEDPIN, LOW);
-        delay(100);
+        delay(500);
         digitalWrite(LEDPIN, HIGH);
-        delay(100);
+        delay(500);
         digitalWrite(LEDPIN, LOW);
 
-        turn_right(turn_speed, 1800);
+        if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
+
+        turn_right(turn_speed, 50 * stuck_counter);
         go_forward(speed, 2000);
+        stuck_counter = 0;
       }
     }
   }
@@ -471,9 +468,11 @@ void roughly_approach(int color_select){
       if (forward_counter < 3){
         go_forward(speed, 3000);
         ++forward_counter;
+        distance = measure_distance();
+        if(distance < 20 && distance > 1){ break; }
       }
-      else { go_forward(speed, 1000); }
-      turn_right(turn_speed, 500);
+      else { go_forward(speed, 2000); }
+      turn_right(turn_speed, 400);
     }
   }
 }
@@ -520,7 +519,7 @@ bool hold_unit(){
 
 void collect_unit(int color_select, bool has_child_unit){
 
-  SD_write(front_shape); SD_write(" collect start "); SD_write(back_shape);
+  SD_write(front_sharp); SD_write(" collect start "); SD_write(color_select); SD_write(" "); (back_sharp);
 
   roughly_approach(color_select);
   precisely_approach(color_select);
@@ -529,14 +528,16 @@ void collect_unit(int color_select, bool has_child_unit){
   //ここに回収判定。回収できなかったらアームを下げて後退する。
   if(hold_unit()){
     turn_left(turn_speed, 1800);
-    SD_write(front_shape); SD_write(" collect finish "); SD_write(back_shape);
+    SD_write(front_sharp); SD_write(" collect finish "); SD_write(back_sharp);
   } else {
     // 回収できない時。改善の余地あり。
     go_back(speed, 3000);
     lift_down(down_speed, 12500);
     lift_up(50, 7000);
+    turn_right(turn_speed, 300);
     collect_unit(color_select, has_child_unit);
     }
+  find_counter = 0;
 }
 
 void approach_base(){
@@ -549,35 +550,36 @@ void approach_base(){
     search_for(INFRARED);
     start_time = millis();
     end_time = millis();
-    while(end_time - start_time < 3000){
-      go_forward(speed, 50);
+    while(end_time - start_time < 5000){
+      go_forward(speed+10, 50);
       photo_val = analogRead(PHOTO_PIN);
       SD_write("photo_val: ");
       SD_writeln(photo_val);
-      if (photo_val < 300){
+      if (photo_val < photoresistor_threshold){
         is_countinue = false;
         break;
       }
-        end_time = millis();
+      end_time = millis();
     }
+    if (is_countinue){ turn_right(turn_speed, 400); }
   }
   digitalWrite(LEDPIN, LOW);
+  find_counter = 0;
 }
 
 void return_unit(){
 
-  SD_write(front_shape); SD_write(" return start "); SD_write(back_shape);
+  SD_write(front_sharp); SD_write(" return start "); SD_write(back_sharp);
 
-  digitalWrite(LEDPIN, HIGH);
   approach_base();
   //子機降ろす
   lift_down(down_speed, 12500);
   go_forward(speed, 500);
   go_back(speed, 2500);
-  turn_right(turn_speed, 1800);
+  turn_left(turn_speed, 1800);
   lift_up(50, 7000);
 
-  SD_write(front_shape); SD_write(" return finish "); SD_write(back_shape);
+  SD_write(front_sharp); SD_write(" return finish "); SD_write(back_sharp);
 }
 
 void loop(){
