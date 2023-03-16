@@ -406,7 +406,7 @@ bool is_stuck(int & stuck_counter, const short int & find_counter){
   return stuck_counter > 15 && find_counter > 1;
 }
 
-void escape_stuck(int & stuck_counter){
+void escape_stuck(int & stuck_counter, int color_select){
   SD_writeln("$ stuck $");
 
   // 一回点灯
@@ -425,7 +425,7 @@ bool can_see_object(int & stuck_counter, const short int & find_counter){
   return stuck_counter <= 20 || find_counter != 0;
 }
 
-void go_straight_unconditionally(int & stuck_counter){
+void go_straight_unconditionally(int & stuck_counter, int color_select){
   SD_writeln("can't find the child unit or base");
 
   // 2回点灯
