@@ -454,7 +454,7 @@ void search_for(int color_select){
     else { find_object = is_local_maximum(color_select) && !is_null(color_select) && is_maximum(color_select)/*&& !is_base()*/; }
     if(find_object){
       reset_consective3_color_array();
-      turn_right(turn_speed, 70);
+      turn_right(turn_speed, 50);
       find_counter += 1;
       stuck_counter = 0;
       break;
@@ -463,9 +463,9 @@ void search_for(int color_select){
       ++stuck_counter;
 
       // スタック判定
-      if (is_stuck(stuck_counter, find_counter)){ escape_stuck(stuck_counter); }
+      if (is_stuck(stuck_counter, find_counter)){ escape_stuck(stuck_counter, color_select); }
       // 適当な方向へ直進
-      else if (!can_see_object(stuck_counter, find_counter)){ go_straight_unconditionally(stuck_counter); }
+      else if (!can_see_object(stuck_counter, find_counter)){ go_straight_unconditionally(stuck_counter, color_select); }
     }
   }
 }
