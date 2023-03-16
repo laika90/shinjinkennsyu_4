@@ -58,8 +58,8 @@ const short int photoresistor_threshold = 300; // フォトレジスタの閾値
 const float color_threshold_ratio = 1.5; // カラーセンサ閾値倍率
 const float ir_threshold_ratio =2;
 
-const String front_sharp = "\n#"; //"###############################";
-const String back_sharp = "#\n";//"###############################\n\n";
+const String front_sharp = "\n#";
+const String back_sharp = "#\n";
 
 
 // 一回だけ実行
@@ -419,6 +419,8 @@ void search_for(int color_select){
     } else {
       turn_left(turn_speed, 50);
       ++stuck_counter;
+
+      // スタック判定
       if (stuck_counter > 15 && find_counter > 1){
         SD_writeln("$ stuck $");
 
@@ -431,9 +433,11 @@ void search_for(int color_select){
         if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
 
         go_back(speed, 1000);
+        turn_right(turn_speed, 300);
         stuck_counter = 0;
         reset_consective3_color_array();
       }
+      // 適当な方向へ直進
       else if (stuck_counter > 20 && find_counter == 0){
         SD_writeln("can't find the child unit or base");
 
@@ -450,6 +454,7 @@ void search_for(int color_select){
 
         turn_right(turn_speed, 50 * stuck_counter);
         go_forward(speed, 2000);
+        turn_right(turn_speed, 300);
         stuck_counter = 0;
       }
     }
@@ -468,10 +473,10 @@ void roughly_approach(int color_select){
       if (forward_counter < 3){
         go_forward(speed, 3000);
         ++forward_counter;
-        distance = measure_distance();
-        if(distance < 20 && distance > 1){ break; }
       }
       else { go_forward(speed, 2000); }
+      distance = measure_distance();
+      if(distance < 20 && distance > 1){ break; }
       turn_right(turn_speed, 400);
     }
   }
