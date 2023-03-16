@@ -55,12 +55,11 @@ const uint8_t Tint = 0;
 const uint16_t N = 3120;
 
 const short int photoresistor_threshold = 300; // フォトレジスタの閾値
-const float color_threshold_ratio = 1.5; // カラーセンサ閾値倍率
-const float ir_threshold_ratio =2;
+const float color_threshold_ratio = 2; // カラーセンサ閾値倍率
+const float ir_threshold_ratio = 1; // 赤外のみ弱いので
 
 const String front_sharp = "\n#";
 const String back_sharp = "#\n";
-
 
 // 一回だけ実行
 void setup() {
@@ -253,7 +252,7 @@ void go_forward(int speed, int delay_time){
   digitalWrite(BIN1,LOW);
   digitalWrite(BIN2,HIGH);
   analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed+8);
+  analogWrite(PWMB,speed+10);
   SD_write("\nGo straight. ");
   delay_log(delay_time);
   stop();
@@ -265,7 +264,7 @@ void go_back(int speed, int delay_time){
   digitalWrite(BIN1,HIGH);
   digitalWrite(BIN2,LOW);
   analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed+8);
+  analogWrite(PWMB,speed+10);
   SD_write("\nGo back. ");
   delay_log(delay_time);
   stop();
@@ -277,7 +276,7 @@ void turn_right(int turn_speed, int delay_time){
   digitalWrite(BIN1,HIGH);
   digitalWrite(BIN2,LOW);
   analogWrite(PWMA,turn_speed);
-  analogWrite(PWMB,turn_speed+8);
+  analogWrite(PWMB,turn_speed+10);
 
   SD_write("\nTurn right. ");
   delay_log(delay_time);
@@ -290,7 +289,7 @@ void turn_left(int turn_speed, int delay_time){
   digitalWrite(BIN1,LOW);
   digitalWrite(BIN2,HIGH);
   analogWrite(PWMA,turn_speed);
-  analogWrite(PWMB,turn_speed+8);
+  analogWrite(PWMB,turn_speed+10);
 
   SD_write("\nTurn left. ");
   delay_log(delay_time);
@@ -381,7 +380,11 @@ void reset_consective3_color_array(){
 }
 
 bool is_local_maximum(int color_select){
-  return consective3_color_array[1][color_select] > offset_val[color_select] * color_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select];
+  if (color_select == INFRARED){
+    return consective3_color_array[1][color_select] >= offset_val[color_select] + ir_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select];
+  } else {
+    return consective3_color_array[1][color_select] >= offset_val[color_select] + color_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select];
+  }
 }
 
 bool is_null(int color_select){
@@ -400,6 +403,14 @@ bool is_maximum(int color_select){
     }
   }
   return max_index == color_select;
+}
+
+bool is_infrared(){
+  return consective3_color_array[1][RED] > offset_val[RED] &&  consective3_color_array[1][BLUE] > offset_val[BLUE] && consective3_color_array[1][GREEN] > offset_val[GREEN];
+}
+
+bool is_green(){
+  return consective3_color_array[1][GREEN] > 2 * consective3_color_array[1][INFRARED];
 }
 
 bool is_stuck(int & stuck_counter, const short int & find_counter){
@@ -425,47 +436,71 @@ bool can_see_object(int & stuck_counter, const short int & find_counter){
   return stuck_counter <= 20 || find_counter != 0;
 }
 
-void go_straight_unconditionally(int & stuck_counter, int color_select){
-  SD_writeln("can't find the child unit or base");
-
-  // 2回点灯
-  digitalWrite(LEDPIN, HIGH);
-  delay(500);
-  digitalWrite(LEDPIN, LOW);
-  delay(500);
-  digitalWrite(LEDPIN, HIGH);
-  delay(500);
-  digitalWrite(LEDPIN, LOW);
-  if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
-
-  turn_right(turn_speed, 50 * stuck_counter);
-  go_forward(speed, 2000);
-  turn_right(turn_speed, 300);
-  stuck_counter = 0;
+bool can_see_ir(const int & stuck_counter){
+  return stuck_counter <= 20;
 }
+
+// void go_straight_unconditionally(int & stuck_counter, int color_select){
+//   SD_writeln("can't find the child unit or base");
+//
+//   // 2回点灯
+//   digitalWrite(LEDPIN, HIGH);
+//   delay(500);
+//   digitalWrite(LEDPIN, LOW);
+//   delay(500);
+//   digitalWrite(LEDPIN, HIGH);
+//   delay(500);
+//   digitalWrite(LEDPIN, LOW);
+//   if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
+//
+//   turn_right(turn_speed, 50 * stuck_counter);
+//   go_forward(speed, 2000);
+//   turn_right(turn_speed, 300);
+//   stuck_counter = 0;
+// }
 
 void search_for(int color_select){
   int stuck_counter = 0;
+  int ir_max = 0;
+  int ir_max_index = 0;
   while(true){
     update_color_array();
     update_consective3_color_array();
     bool find_object;
-    if (color_select == INFRARED){ find_object = is_local_maximum(color_select) /* && is_maximum(color_select)&& !is_null(color_select)*/; }
+    if (color_select == INFRARED){ find_object = is_local_maximum(color_select) && is_infrared()/* && is_maximum(color_select)&& !is_null(color_select)*/; }
+    else if (color_select == GREEN){ find_object = is_local_maximum(color_select) && !is_null(color_select) && is_maximum(color_select) && is_green()/*&& !is_base()*/; }
     else { find_object = is_local_maximum(color_select) && !is_null(color_select) && is_maximum(color_select)/*&& !is_base()*/; }
+
     if(find_object){
       reset_consective3_color_array();
-      turn_right(turn_speed, 50);
+      turn_right(turn_speed, 65);
       find_counter += 1;
       stuck_counter = 0;
       break;
     } else {
       turn_left(turn_speed, 50);
       ++stuck_counter;
+      ++ir_max_index;
+
+      // IR値の更新
+      if (consective3_color_array[2][INFRARED] >= ir_max){
+        ir_max = consective3_color_array[2][INFRARED];
+        ir_max_index = 0;
+      }
 
       // スタック判定
       if (is_stuck(stuck_counter, find_counter)){ escape_stuck(stuck_counter, color_select); }
       // 適当な方向へ直進
-      else if (!can_see_object(stuck_counter, find_counter)){ go_straight_unconditionally(stuck_counter, color_select); }
+      // else if (!can_see_object(stuck_counter, find_counter)){ go_straight_unconditionally(stuck_counter, color_select); }
+      // 赤外線のみ実装
+      if (!can_see_ir(stuck_counter)){
+        turn_right(turn_speed, 60*ir_max_index);
+        go_forward(speed, 2000);
+        ir_max_index = 0;
+        ir_max = 0;
+        stuck_counter = 0;
+        turn_right(turn_speed, 65);
+      }
     }
   }
 }
@@ -484,8 +519,10 @@ void roughly_approach(int color_select){
         ++forward_counter;
       }
       else { go_forward(speed, 2000); }
+
       distance = measure_distance();
       if(distance < 20 && distance > 1){ break; }
+
       turn_right(turn_speed, 400);
     }
   }
@@ -493,10 +530,20 @@ void roughly_approach(int color_select){
 
 void precisely_approach(int color_select){
   float distance;
+  short int zero_counter = 0;
   while(true){
     go_forward(speed, 300);
     distance = measure_distance();
-    if(distance < 10){
+    if (distance == 0){
+      ++zero_counter;
+      if (zero_counter > 3){ break; }
+      else {
+        delay_log(300);
+        continue;
+      }
+    zero_counter = 0;
+    }
+    else if(distance < 10){
       break;
     }
   }
@@ -509,20 +556,20 @@ void lift_unit(bool has_child_unit){
   } else {
     // 子機を持っているなら、積み重ね
     go_forward(speed, 1000);
-    lift_down(down_speed, 8000);
+    lift_down(down_speed, 7000);
     go_back(speed, 2000);
     lift_down(down_speed, 4500);
   }
-  go_forward(speed, 3000);
+  go_forward(speed-10, 4000);
   lift_up(up_speed, 5000);
 }
 
 bool hold_unit(){
   int start_time = millis();
-  int end_time;
-  while(digitalRead(INPIN) == HIGH){
+  int end_time = millis();
+  while(end_time - start_time < 4000){
     end_time = millis();
-    if (end_time - start_time > 4000){
+    if (digitalRead(INPIN) == HIGH){
       SD_writeln("hold unit is true");
       return true;
     }
@@ -547,6 +594,8 @@ void collect_unit(int color_select, bool has_child_unit){
     // 回収できない時。改善の余地あり。
     go_back(speed, 3000);
     lift_down(down_speed, 12500);
+    go_forward(speed, 3000);
+    go_back(speed, 3000);
     lift_up(50, 7000);
     turn_right(turn_speed, 300);
     collect_unit(color_select, has_child_unit);
@@ -581,27 +630,31 @@ void approach_base(){
   find_counter = 0;
 }
 
-void return_unit(){
+void return_unit(int color_select){
 
   SD_write(front_sharp); SD_write(" return start "); SD_write(back_sharp);
 
   approach_base();
   //子機降ろす
-  lift_down(down_speed, 12500);
-  go_forward(speed, 500);
-  go_back(speed, 2500);
-  turn_left(turn_speed, 1800);
-  lift_up(50, 7000);
+  while(true){
+    lift_down(down_speed, 12500);
+    if(color_select == RED) { go_forward(speed, 1000); }
+    go_back(speed, 2500);
+    lift_up(50, 7000);
+    if (!hold_unit()){ break; }
+    else { go_forward(speed, 2500); }
+  }
+  turn_left(turn_speed, 1200);
 
   SD_write(front_sharp); SD_write(" return finish "); SD_write(back_sharp);
 }
 
 void loop(){
   collect_unit(RED, /* has_child_unit = */ false);
-  return_unit();
-  collect_unit(BLUE, /* has_child_unit = */ false);
-  collect_unit(GREEN, /* has_child_unit = */ true);
-  return_unit();
+  return_unit(RED);
+  collect_unit(GREEN, /* has_child_unit = */ false);
+  collect_unit(BLUE, /* has_child_unit = */ true);
+  return_unit(BLUE);
   // 子機を重ねるプログラムは作成中。カラーセンサーの閾値設定は不完全なため修正中。
 
   while(true);
