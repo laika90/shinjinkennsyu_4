@@ -402,6 +402,48 @@ bool is_maximum(int color_select){
   return max_index == color_select;
 }
 
+bool is_stuck(int & stuck_counter, const short int & find_counter){
+  return stuck_counter > 15 && find_counter > 1;
+}
+
+void escape_stuck(int & stuck_counter){
+  SD_writeln("$ stuck $");
+
+  // 一回点灯
+  digitalWrite(LEDPIN, HIGH);
+  delay(500);
+  digitalWrite(LEDPIN, LOW);
+  if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
+
+  go_back(speed, 1000);
+  turn_right(turn_speed, 300);
+  stuck_counter = 0;
+  reset_consective3_color_array();
+}
+
+bool can_see_object(int & stuck_counter, const short int & find_counter){
+  return stuck_counter <= 20 || find_counter != 0;
+}
+
+void go_straight_unconditionally(int & stuck_counter){
+  SD_writeln("can't find the child unit or base");
+
+  // 2回点灯
+  digitalWrite(LEDPIN, HIGH);
+  delay(500);
+  digitalWrite(LEDPIN, LOW);
+  delay(500);
+  digitalWrite(LEDPIN, HIGH);
+  delay(500);
+  digitalWrite(LEDPIN, LOW);
+  if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
+
+  turn_right(turn_speed, 50 * stuck_counter);
+  go_forward(speed, 2000);
+  turn_right(turn_speed, 300);
+  stuck_counter = 0;
+}
+
 void search_for(int color_select){
   int stuck_counter = 0;
   while(true){
@@ -421,42 +463,9 @@ void search_for(int color_select){
       ++stuck_counter;
 
       // スタック判定
-      if (stuck_counter > 15 && find_counter > 1){
-        SD_writeln("$ stuck $");
-
-        // 謎のモールス的な
-        digitalWrite(LEDPIN, HIGH);
-        delay(500);
-        digitalWrite(LEDPIN, LOW);
-
-        // 再点灯
-        if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
-
-        go_back(speed, 1000);
-        turn_right(turn_speed, 300);
-        stuck_counter = 0;
-        reset_consective3_color_array();
-      }
+      if (is_stuck(stuck_counter, find_counter)){ escape_stuck(stuck_counter); }
       // 適当な方向へ直進
-      else if (stuck_counter > 20 && find_counter == 0){
-        SD_writeln("can't find the child unit or base");
-
-        // 謎のモールス的な
-        digitalWrite(LEDPIN, HIGH);
-        delay(500);
-        digitalWrite(LEDPIN, LOW);
-        delay(500);
-        digitalWrite(LEDPIN, HIGH);
-        delay(500);
-        digitalWrite(LEDPIN, LOW);
-
-        if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
-
-        turn_right(turn_speed, 50 * stuck_counter);
-        go_forward(speed, 2000);
-        turn_right(turn_speed, 300);
-        stuck_counter = 0;
-      }
+      else if (!can_see_object(stuck_counter, find_counter)){ go_straight_unconditionally(stuck_counter); }
     }
   }
 }
