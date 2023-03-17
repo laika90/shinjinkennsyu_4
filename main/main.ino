@@ -55,11 +55,13 @@ const uint8_t Tint = 0;
 const uint16_t N = 3120;
 
 const short int photoresistor_threshold = 300; // フォトレジスタの閾値
-const float color_threshold_ratio = 2; // カラーセンサ閾値倍率
+const float color_threshold_ratio = 3; // カラーセンサ閾値倍率
 const float ir_threshold_ratio = 1; // 赤外のみ弱いので
 
 const String front_sharp = "\n#";
 const String back_sharp = "#\n";
+
+const short int right_correction = 8;
 
 // 一回だけ実行
 void setup() {
@@ -252,7 +254,7 @@ void go_forward(int speed, int delay_time){
   digitalWrite(BIN1,LOW);
   digitalWrite(BIN2,HIGH);
   analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed+10);
+  analogWrite(PWMB,speed+right_correction);
   SD_write("\nGo straight. ");
   delay_log(delay_time);
   stop();
@@ -264,7 +266,7 @@ void go_back(int speed, int delay_time){
   digitalWrite(BIN1,HIGH);
   digitalWrite(BIN2,LOW);
   analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed+10);
+  analogWrite(PWMB,speed+right_correction);
   SD_write("\nGo back. ");
   delay_log(delay_time);
   stop();
@@ -276,7 +278,7 @@ void turn_right(int turn_speed, int delay_time){
   digitalWrite(BIN1,HIGH);
   digitalWrite(BIN2,LOW);
   analogWrite(PWMA,turn_speed);
-  analogWrite(PWMB,turn_speed+10);
+  analogWrite(PWMB,turn_speed+right_correction);
 
   SD_write("\nTurn right. ");
   delay_log(delay_time);
@@ -289,7 +291,7 @@ void turn_left(int turn_speed, int delay_time){
   digitalWrite(BIN1,LOW);
   digitalWrite(BIN2,HIGH);
   analogWrite(PWMA,turn_speed);
-  analogWrite(PWMB,turn_speed+10);
+  analogWrite(PWMB,turn_speed+right_correction);
 
   SD_write("\nTurn left. ");
   delay_log(delay_time);
@@ -381,9 +383,9 @@ void reset_consective3_color_array(){
 
 bool is_local_maximum(int color_select){
   if (color_select == INFRARED){
-    return consective3_color_array[1][color_select] >= offset_val[color_select] + ir_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select];
+    return consective3_color_array[1][color_select] >= offset_val[color_select] + ir_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] < consective3_color_array[1][color_select];
   } else {
-    return consective3_color_array[1][color_select] >= offset_val[color_select] + color_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] <= consective3_color_array[1][color_select];
+    return consective3_color_array[1][color_select] >= offset_val[color_select] + color_threshold_ratio && consective3_color_array[0][color_select] <= consective3_color_array[1][color_select] && consective3_color_array[2][color_select] < consective3_color_array[1][color_select];
   }
 }
 
@@ -440,6 +442,19 @@ bool can_see_ir(const int & stuck_counter){
   return stuck_counter <= 20;
 }
 
+bool can_see_color(const int & stuck_counter){
+  return stuck_counter <= 50;
+}
+
+void approach_higher_values(int & stuck_counter, int & color_max_index, int & color_max){
+  turn_right(turn_speed, 60*color_max_index);
+  go_forward(speed, 2000);
+  stuck_counter = 0;
+  color_max_index = 0;
+  color_max = 0;
+  turn_right(turn_speed, 400);
+}
+
 // void go_straight_unconditionally(int & stuck_counter, int color_select){
 //   SD_writeln("can't find the child unit or base");
 //
@@ -461,8 +476,8 @@ bool can_see_ir(const int & stuck_counter){
 
 void search_for(int color_select){
   int stuck_counter = 0;
-  int ir_max = 0;
-  int ir_max_index = 0;
+  int color_max = 0;
+  int color_max_index = 0;
   while(true){
     update_color_array();
     update_consective3_color_array();
@@ -475,17 +490,16 @@ void search_for(int color_select){
       reset_consective3_color_array();
       turn_right(turn_speed, 65);
       find_counter += 1;
-      stuck_counter = 0;
       break;
     } else {
       turn_left(turn_speed, 50);
       ++stuck_counter;
-      ++ir_max_index;
+      ++color_max_index;
 
       // IR値の更新
-      if (consective3_color_array[2][INFRARED] >= ir_max){
-        ir_max = consective3_color_array[2][INFRARED];
-        ir_max_index = 0;
+      if (consective3_color_array[2][color_select] >= color_max){
+        color_max = consective3_color_array[2][color_select];
+        color_max_index = 0;
       }
 
       // スタック判定
@@ -493,14 +507,7 @@ void search_for(int color_select){
       // 適当な方向へ直進
       // else if (!can_see_object(stuck_counter, find_counter)){ go_straight_unconditionally(stuck_counter, color_select); }
       // 赤外線のみ実装
-      if (!can_see_ir(stuck_counter)){
-        turn_right(turn_speed, 60*ir_max_index);
-        go_forward(speed, 2000);
-        ir_max_index = 0;
-        ir_max = 0;
-        stuck_counter = 0;
-        turn_right(turn_speed, 65);
-      }
+      if (!can_see_color(stuck_counter)){ approach_higher_values(stuck_counter, color_max_index, color_max); }
     }
   }
 }
@@ -588,7 +595,8 @@ void collect_unit(int color_select, bool has_child_unit){
 
   //ここに回収判定。回収できなかったらアームを下げて後退する。
   if(hold_unit()){
-    turn_left(turn_speed, 1800);
+    if (color_select == RED){ turn_left(turn_speed, 1200); }
+    else { turn_left(turn_speed, 1800); }
     SD_write(front_sharp); SD_write(" collect finish "); SD_write(back_sharp);
   } else {
     // 回収できない時。改善の余地あり。
@@ -644,7 +652,7 @@ void return_unit(int color_select){
     if (!hold_unit()){ break; }
     else { go_forward(speed, 2500); }
   }
-  turn_left(turn_speed, 1200);
+  turn_left(turn_speed, 1000);
 
   SD_write(front_sharp); SD_write(" return finish "); SD_write(back_sharp);
 }
