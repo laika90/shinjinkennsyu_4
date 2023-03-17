@@ -447,6 +447,16 @@ bool can_see_color(const int & stuck_counter){
 }
 
 void approach_higher_values(int & stuck_counter, int & color_max_index, int & color_max){
+  // 2回点灯
+  digitalWrite(LEDPIN, HIGH);
+  delay(500);
+  digitalWrite(LEDPIN, LOW);
+  delay(500);
+  digitalWrite(LEDPIN, HIGH);
+  delay(500);
+  digitalWrite(LEDPIN, LOW);
+  if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
+
   turn_right(turn_speed, 60*color_max_index);
   go_forward(speed, 2000);
   stuck_counter = 0;
@@ -574,7 +584,7 @@ void lift_unit(bool has_child_unit){
 bool hold_unit(){
   int start_time = millis();
   int end_time = millis();
-  while(end_time - start_time < 4000){
+  while(end_time - start_time < 10000){
     end_time = millis();
     if (digitalRead(INPIN) == HIGH){
       SD_writeln("hold unit is true");
