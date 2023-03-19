@@ -266,7 +266,7 @@ void go_back(int speed, int delay_time){
   digitalWrite(BIN1,HIGH);
   digitalWrite(BIN2,LOW);
   analogWrite(PWMA,speed);
-  analogWrite(PWMB,speed+right_correction);
+  analogWrite(PWMB,speed+right_correction+4);
   SD_write("\nGo back. ");
   delay_log(delay_time);
   stop();
@@ -447,15 +447,6 @@ bool can_see_color(const int & stuck_counter){
 }
 
 void approach_higher_values(int & stuck_counter, int & color_max_index, int & color_max){
-  // 2回点灯
-  digitalWrite(LEDPIN, HIGH);
-  delay(500);
-  digitalWrite(LEDPIN, LOW);
-  delay(500);
-  digitalWrite(LEDPIN, HIGH);
-  delay(500);
-  digitalWrite(LEDPIN, LOW);
-  if (color_select == INFRARED){ digitalWrite(LEDPIN, HIGH); }
 
   turn_right(turn_speed, 60*color_max_index);
   go_forward(speed, 2000);
